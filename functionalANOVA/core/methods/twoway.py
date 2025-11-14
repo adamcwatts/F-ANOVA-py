@@ -90,11 +90,14 @@ def run_twoway(self, method, data, contrast):
         Ap = np.eye(p) - np.outer(np.ones(p), u)
         Aq = np.eye(q) - np.outer(np.ones(q), v)
 
+
+    if contrast.ndim == 1:
+        contrast = contrast[None, :]
+
     # Handle hypothesis-specific contrast construction
     match self.hypothesis:
         case "PAIRWISE" | "FAMILY":
-            r = contrast.shape[0]
-
+                r = contrast.shape[0]
         case "INTERACTION":
             contrast = np.kron(Hp, Hq) @ np.kron(Ap, Aq)
             r = (p - 1) * (q - 1)
@@ -120,7 +123,6 @@ def run_twoway(self, method, data, contrast):
                 raise ValueError("Invalid contrast_facto: must be 1 or 2")
 
             r = contrast.shape[0]
-
 
     W = inv(contrast @ np.diag(1/gsize) @ contrast.T)
     SSH = np.diag((contrast @ vmu).T @ W @ (contrast @ vmu))

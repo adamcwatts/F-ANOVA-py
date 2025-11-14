@@ -169,9 +169,9 @@ def f_bootstrap(obj, yy, method):
 
 def generate_two_way_comb(self):
     combinations = []
-    for K in range(self.A_groups):
-        for KK in range(self.B_groups):
-            combination = f"{self.primary_labels[K]}-{self.secondary_labels[KK]}"
+    for K in range(self._groups.A):
+        for KK in range(self._groups.B):
+            combination = f"{self._labels.primary[K]}-{self._labels.secondary[KK]}"
             combinations.append(combination)
     return combinations
 

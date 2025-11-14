@@ -1115,14 +1115,13 @@ class functionalANOVA():
                 self._tables.twoway = table
 
         elif self.hypothesis == "PAIRWISE":
-            all_labels = self.generate_two_way_combinations()
-
+            all_labels = utils.generate_two_way_comb(self)
+            labels = np.asarray(all_labels)
             for cc in range(n_tests):
                 indices = C[cc, :].astype(bool)
-                try:
-                    t1, t2 = all_labels[indices]
-                except ValueError:
-                    raise ValueError(f"Could not find 2 labels for contrast row {cc}: {C[cc, :]}")
+                picked = labels[indices]          # boolean mask works now
+                assert picked.size == 2, f"Expected 2 labels, got {picked.size}: {picked}"
+                t1, t2 = picked
                 pair_vec.append(f"{t1} & {t2}")
 
             self.hypothesis_LABEL = np.array(pair_vec)
