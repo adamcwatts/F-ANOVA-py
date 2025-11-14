@@ -69,11 +69,11 @@ def run_twoway(self, method, data, contrast):
 
     if self.hypothesis not in ["PAIRWISE", "FAMILY"]:
         # Define u and v based on weights
-        if self.weights == "UNIFORM":
+        if self.weights.upper() == "UNIFORM":
             u = np.ones(p) / p
             v = np.ones(q) / q
 
-        elif self.weights == "PROPORTIONAL":
+        elif self.weights.upper() == "PROPORTIONAL":
             matsize = np.array(p_cell)
             N_total = np.sum(gsize)
 
@@ -81,9 +81,9 @@ def run_twoway(self, method, data, contrast):
             v = np.sum(matsize, axis=0) / N_total
 
         else:
-            raise ValueError(f"Unsupported weight type: {self.weights}")
+            raise ValueError(f"Unsupported weight type: {self.weights}, must either be 'UNIFORM' or 'PROPORTIONAL'")
 
-        # Define projection and centering matrices
+
         Hp = np.hstack([np.eye(p - 1), -np.ones((p - 1, 1))])
         Hq = np.hstack([np.eye(q - 1), -np.ones((q - 1, 1))])
 
@@ -101,7 +101,7 @@ def run_twoway(self, method, data, contrast):
 
         case "PRIMARY":
             assert v is not None, "v must be defined before using reshape"
-            contrast = Hp @ np.kron(Ap, v.reshape(-1, 1))
+            contrast = Hp @ np.kron(Ap, v)
             r = p - 1
 
         case "SECONDARY":
@@ -263,7 +263,7 @@ def run_twoway(self, method, data, contrast):
 # TODO: Needs work
 def run_twowayBF(self, method, data, contrast, c):
 
-    bflag = self.SubgroupIndicator
+    bflag = self._groups.subgroup_indicator
     N = self.N
     aflag = utils.aflag_maker(self.n_i)
     dim = self.n_domain_points
@@ -301,14 +301,17 @@ def run_twowayBF(self, method, data, contrast, c):
 
     yy = np.vstack(yy)
 
-    if self.weights == "UNIFORM":
+    if self.weights.upper() == "UNIFORM":
         u = np.ones(p) / p
         v = np.ones(q) / q
 
-    elif self.weights == "PROPORTIONAL":
+    elif self.weights.upper() == "PROPORTIONAL":
         u = np.sum(gsize, axis=1) / N
         v = np.sum(gsize, axis=0) / N
+    else:
+        raise ValueError(f"Unsupported weight type: {self.weights}, must either be 'UNIFORM' or 'PROPORTIONAL'")
 
+    
     Ap = np.eye(p) - np.outer(np.ones(p), u)
     Aq = np.eye(q) - np.outer(np.ones(q), v)
 

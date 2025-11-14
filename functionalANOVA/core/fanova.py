@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 import warnings
 from functionalANOVA.core import utils
 from functionalANOVA.core.methods import oneway, twoway, plotting
+import sys
 
 @dataclass  # class to store these labels
 class ANOVALabels:
@@ -489,6 +490,72 @@ class functionalANOVA():
         if self.verbose:
             self._data_summary_report_two_way(ANOVA_TYPE='homoskedastic')
             self._show_table(self._tables.twoway)
+            
+    def twoway_bf(
+        self,
+        n_boot: int = 10_000,
+        n_simul: int = 10_000,
+        alpha: float = 0.05,
+        methods: Optional[Sequence[str]] = None,
+        hypothesis: Optional[Sequence[str]] = None,
+        subgroup_indicator: Union[np.ndarray, List[np.ndarray], None] = None,
+        contrast: Optional[np.ndarray] = None,
+        primary_labels: Optional[Sequence[str]] = None,
+        secondary_labels: Optional[Sequence[str]] = None,
+        weights: Optional[Literal["proportional", "uniform"]] = None
+    ):
+        self._validate_stat_inputs(alpha, n_boot, n_simul, methods, hypothesis)
+        
+        #TODO: Verify twoway args: contrast, primary_labels, secondary_labels, weights
+        
+        if self._groups.subgroup_indicator is None:
+            raise ValueError('subgroup_indicator must be provided for twoway ANOVAs')
+        else:
+            self._setup_twoway()  # already validates subgroup_indicator
+            self._setup_twoway_h0()
+            
+        yy = np.vstack([arr.T for arr in self.data])    
+        
+        C, n_tests = self._compute_contrast_matrix()
+        C = np.asarray(C)
+        pair_vec = self._setup_twoway_labels_and_tables(C, n_tests, scedasticity='heteroscedastic')
+        
+        T_hypothesis = pd.DataFrame({'Hypothesis': pair_vec})
+        n_methods = len(self._methods.anova_methods_used)
+        # Always initialize analysis state
+        p_value_matrix = np.full((n_tests, n_methods), np.nan)
+        test_stat = np.full((1, n_methods), np.nan)
+        counter = 0
+        statistic = 0
+        c = 0
+        
+        for counter, method in enumerate(self._methods.anova_methods_used):
+            p_values = np.zeros(n_tests)
+
+            for ii in range(n_tests):
+                match self.hypothesis:
+                    case "PAIRWISE":
+                        C_input = C[ii, :]
+                        self._labels.hypothesis = pair_vec[ii]
+
+                    case "INTERACTION" | "PRIMARY" | "SECONDARY" | "FAMILY":
+                        C_input = self.sanitize_contrast(C)
+
+                    case _:
+                        C_input = self.sanitize_contrast(C)  # for CUSTOM or any other hypothesis
+
+                # Run the TwoWay test
+                p_value, statistic = self._run_twowayBF(method, yy, C_input, c)
+                p_values[ii] = p_value
+
+            # Store results
+            p_value_matrix[:, counter] = p_values
+            test_stat[0, counter] = statistic
+
+        self._prep_tables('twoway_bf', p_value_matrix, T_hypothesis, test_stat)
+        if self.verbose:
+            self._data_summary_report_two_way(ANOVA_TYPE='heteroscedastic')
+            self._show_table(self._tables.twoway_bf)
 
     def _prep_tables(self, anova_method, p_value_matrix, T_hypothesis, test_stat):
         match anova_method:
@@ -542,7 +609,7 @@ class functionalANOVA():
                             # Combine into full results table
                             self._tables.twoway = pd.concat([T_hypothesis, T_p_value], axis=1)
 
-                        case "FAMILY":
+                        case "FAMILY" | "PRIMARY" | "SECONDARY" | "INTERACTION":
                             if not isinstance(self._tables.twoway, pd.DataFrame):
                                 raise ValueError('two_way should be a pandas dataframe')
                             
@@ -554,9 +621,32 @@ class functionalANOVA():
                             significant = self._tables.twoway["P-Value"] < self.alpha
                             self._tables.twoway.loc[significant, "Verdict"] = "Reject Null Hypothesis for Alternative Hypothesis"
                             self._tables.twoway.loc[~significant, "Verdict"] = "Fail to Reject Null Hypothesis"
+                        case _:
+                            raise ValueError(f"Unsupported Hypothesis: {self.hypothesis}")
 
             case 'twoway_bf':
-                pass
+                     match self.hypothesis:
+                        case "PAIRWISE" :
+                            # Create DataFrame of p-values
+                            T_p_value = pd.DataFrame(p_value_matrix, columns=self._methods.anova_methods_used)
+
+                            # Combine into full results table
+                            self._tables.twoway_bf = pd.concat([T_hypothesis, T_p_value], axis=1)
+
+                        case "FAMILY" | "PRIMARY" | "SECONDARY" | "INTERACTION":
+                            if not isinstance(self._tables.twoway_bf, pd.DataFrame):
+                                raise ValueError('two_way should be a pandas dataframe')
+                            
+                            # Update columns
+                            self._tables.twoway_bf["P-Value"] = p_value_matrix.T.flatten()
+                            self._tables.twoway_bf["Test-Statistic"] = test_stat.T.flatten()
+
+                            # Add verdicts based on alpha
+                            significant = self._tables.twoway_bf["P-Value"] < self.alpha
+                            self._tables.twoway_bf.loc[significant, "Verdict"] = "Reject Null Hypothesis for Alternative Hypothesis"
+                            self._tables.twoway_bf.loc[~significant, "Verdict"] = "Fail to Reject Null Hypothesis"
+                        case _:
+                            raise ValueError(f"Unsupported Hypothesis: {self.hypothesis}")
 
     def _show_table(self, table_to_show):
         temp_table = table_to_show.copy()
@@ -578,7 +668,7 @@ class functionalANOVA():
             )
             temp_table = temp_table[reordered_cols]
 
-        else:  # "FAMILY"
+        else:  # "FAMILY" | "PRIMARY" | "SECONDARY"
             n_items = len(temp_table)
 
             # Format 'Test-Statistic' column
@@ -730,10 +820,16 @@ class functionalANOVA():
             if not hypothesis.strip():
                 raise ValueError("hypothesis string must not be empty or whitespace only")
 
-            if hypothesis.upper() not in self._labels.H0_OneWay:
-                raise ValueError(
-                    f"Invalid hypothesis: {hypothesis}. Must be one of {self._labels.H0_OneWay}"
-                )
+            f = sys._getframe(1)  # 0=this function, 1=its caller
+
+            if 'oneway' in f.f_code.co_name:
+                if hypothesis.upper() not in self._labels.H0_OneWay:
+                    raise ValueError(f"Invalid hypothesis: {hypothesis}. Must be one of {self._labels.H0_OneWay}")
+            elif 'twoway' in f.f_code.co_name:
+                if hypothesis.upper() not in self._labels.H0_TwoWay:
+                    raise ValueError(f"Invalid hypothesis: {hypothesis}. Must be one of {self._labels.H0_TwoWay}")
+            else:
+                raise ValueError(f"Unknown Method. Call stack above was: {f.f_code.co_name}")    
 
             self.hypothesis = hypothesis.upper()
 
@@ -1090,16 +1186,28 @@ class functionalANOVA():
                         desc = 'Calculating, Family-wise, Bootstrap L2 test'
                     case "PAIRWISE":
                         desc = f'Calculating, Pair-wise ({self._labels.hypothesis}), Bootstrap L2 test'
+                    case "PRIMARY":
+                        desc = f'Calculating, Primary Effect, Bootstrap L2 test'
+                    case "SECONDARY":
+                        desc = f'Calculating, Secondary Effect, Bootstrap L2 test'
+                    case "INTERACTION":
+                        desc = f'Calculating, Interaction Effect, Bootstrap L2 test'
                     case _:
-                        desc = f'Calculating, Effect ({self._labels.hypothesis}), Bootstrap L2 test'
+                        raise ValueError(f'Unsupported Hypothesis: {self.hypothesis}')
             case "F-Bootstrap":
                 match self.hypothesis:
                     case 'FAMILY':
                         desc ='Calculating, Family-wise, Bootstrap F-type test'
                     case "PAIRWISE":
                         desc = f'Calculating, Pair-wise ({self._labels.hypothesis}), Bootstrap F-type test'
+                    case "PRIMARY":
+                        desc = f'Calculating, Primary Effect, Bootstrap F-type test'
+                    case "SECONDARY":
+                        desc = f'Calculating, Secondary Effect, Bootstrap F-type test'  
+                    case "INTERACTION":
+                        desc = f'Calculating, Interaction Effect, Bootstrap F-type test'  
                     case _:
-                        desc = f'Calculating, Effect ({self._labels.hypothesis}), Bootstrap F-type test'
+                        raise ValueError(f'Unsupported Hypothesis: {self.hypothesis}')                      
             case _:
                 raise ValueError(f'Unsupported method for TQDM: {method}')
 
@@ -1241,3 +1349,14 @@ class functionalANOVA():
             return np.ravel(arr)  # returns a view if possible
         else:
             raise ValueError(f"Input must be a 1D vector, or 2D row/column vector, but got array with shape {arr.shape}")
+    @staticmethod
+    def sanitize_contrast(c):
+        if c is None:
+            return np.empty((0,), float)  # length 0
+        arr = np.asarray(c)
+        if arr.ndim == 0:
+            # if it’s literally the scalar None, make it empty; otherwise make it length-1
+            if arr.dtype == object and arr.item() is None:
+                return np.empty((0,), float)
+            return arr.reshape(1,)
+        return arr
