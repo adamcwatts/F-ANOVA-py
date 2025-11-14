@@ -476,66 +476,69 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
             dd = np.diag(W)
             K1 = np.sum(dd * A)
             f_stat = stat0 / K1
+            
+            build_covar_star = np.zeros((self.n_domain_points, 0))
+            COV_Sum = 0
+            vmu = np.empty((0, p))
 
-            if self.hypothesis in ['FAMILY', 'PAIRWISE']:
-                build_covar_star = np.zeros((self.n_domain_points, 0))
-                COV_Sum = 0
-                vmu = np.empty((0, p))
+            for i in range(k):
+                if mask[i]:
+                    iflag = (aflag == aflag0[i])
+                    yi = yy[iflag, :]
+                    gsize[i] = yi.shape[0]
 
-                for i in range(k):
-                    if mask[i]:
-                        iflag = (aflag == aflag0[i])
-                        yi = yy[iflag, :]
-                        gsize[i] = yi.shape[0]
+                    ni = int(gsize[i])
+                    mui = np.mean(yi, axis=0)
+                    vmu = np.vstack([vmu, mui])
 
-                        ni = int(gsize[i])
-                        mui = np.mean(yi, axis=0)
-                        vmu = np.vstack([vmu, mui])
+                    ri = yi - np.ones((ni, 1)) @ mui.reshape(1, -1)
+                    COV_Sum += np.cov(ri.T) * (ni - 1)
 
-                        ri = yi - np.ones((ni, 1)) @ mui.reshape(1, -1)
-                        COV_Sum += np.cov(ri.T) * (ni - 1)
+                    build_covar_star = np.hstack([build_covar_star, ri.T])
 
-                        build_covar_star = np.hstack([build_covar_star, ri.T])
+            g_n = gsize[mask]
+            N_n = int(np.sum(g_n))
+            k_n = len(g_n)
 
-                g_n = gsize[mask]
-                N_n = int(np.sum(g_n))
-                k_n = len(g_n)
+            COV_Sum = COV_Sum / (N_n - k_n)
 
-                COV_Sum = COV_Sum / (N_n - k_n)
+            eig_gamma_hat = np.linalg.eigvalsh(COV_Sum)
+            eig_gamma_hat = eig_gamma_hat[eig_gamma_hat > 0]
 
-                eig_gamma_hat = np.linalg.eigvalsh(COV_Sum)
+            match self.hypothesis:
+                case 'FAMILY' | 'PAIRWISE':
+                    q = k_n - 1
+                case  'PRIMARY' | 'SECONDARY' | "INTERACTION":
+                    q = np.linalg.matrix_rank(contrast)
+                case _:
+                    raise ValueError(f'Unknown Hypothesis: f{self.hypothesis}')
+                
+            T_null = utils.chi_sq_mixture(q, eig_gamma_hat, self.n_simul)
+
+            S_null = np.zeros(self.n_simul)
+            S_ii_subset = np.asarray([S_ii[i] for i in range(k) if mask[i]])
+
+            for i in range(k_n):
+                eig_gamma_hat = np.linalg.eigvalsh(S_ii_subset[i])
                 eig_gamma_hat = eig_gamma_hat[eig_gamma_hat > 0]
 
-                q = k_n - 1
-                T_null = utils.chi_sq_mixture(q, eig_gamma_hat, self.n_simul)
+                S_temp = utils.chi_sq_mixture(int(g_n[i]) - 1, eig_gamma_hat, self.n_simul)
+                S_temp = (S_temp * A_n_ii[i]) / (g_n[i] - 1)
+                S_null += S_temp
 
-                S_null = np.zeros(self.n_simul)
-                S_ii_subset = np.asarray([S_ii[i] for i in range(k) if mask[i]])
+            F_null = T_null / S_null
+            F_NullFitted = stats.gaussian_kde(F_null)
 
-                for i in range(k_n):
-                    eig_gamma_hat = np.linalg.eigvalsh(S_ii_subset[i])
-                    eig_gamma_hat = eig_gamma_hat[eig_gamma_hat > 0]
+            pvalue = 1 - F_NullFitted.integrate_box_1d(-np.inf, f_stat)
+            pvalue = max(0,min(1,pvalue))
 
-                    S_temp = utils.chi_sq_mixture(int(g_n[i]) - 1, eig_gamma_hat, self.n_simul)
-                    S_temp = (S_temp * A_n_ii[i]) / (g_n[i] - 1)
-                    S_null += S_temp
+            pstat = [f_stat, pvalue]
+            
+            if self.show_simul_plots:
+                self._plot_test_stats(pvalue, T_null, stat0, method, scedasticity='heteroscedastic', k=k_n, N=N_n)
 
-                F_null = T_null / S_null
-                F_NullFitted = stats.gaussian_kde(F_null)
-
-                pvalue = 1 - F_NullFitted.integrate_box_1d(-np.inf, f_stat)
-                pvalue = max(0,min(1,pvalue))
-
-                pstat = [f_stat, pvalue]
-                
-                if self.show_simul_plots:
-                    self._plot_test_stats(pvalue, T_null, stat0, method, scedasticity='heteroscedastic', k=k_n, N=N_n)
-                
-            else:
-                pstat = [f_stat, np.nan]
-
-        stat = pstat[0]
-        pvalue = pstat[1]
+            stat = pstat[0]
+            pvalue = pstat[1]
 
     elif method == "L2-Bootstrap":
         Bstat = np.empty(self.n_boot)
@@ -567,52 +570,58 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
         pstat = [stat0, pvalue]
 
     elif method == "L2-Simul":
-        if self.hypothesis in ['FAMILY', 'PAIRWISE']:
-            build_covar_star = np.zeros((self.n_domain_points, 0))
+        build_covar_star = np.zeros((self.n_domain_points, 0))
 
-            if contrast.ndim == 2:
-                mask = np.any(contrast.T.astype(bool), axis=1)
-            else:
-                mask = contrast.T.astype(bool)
-            
-            COV_Sum = 0
-            vmu = np.empty((0, p))
+        if contrast.ndim == 2:
+            mask = np.any(contrast.T.astype(bool), axis=1)
+        else:
+            mask = contrast.T.astype(bool)
+        
+        COV_Sum = 0
+        vmu = np.empty((0, p))
 
-            for i in range(k):
-                if mask[i]:
-                    iflag = (aflag == aflag0[i])
-                    yi = yy[iflag, :]
+        for i in range(k):
+            if mask[i]:
+                iflag = (aflag == aflag0[i])
+                yi = yy[iflag, :]
 
-                    gsize[i] = yi.shape[0]
-                    ni = int(gsize[i])
+                gsize[i] = yi.shape[0]
+                ni = int(gsize[i])
 
-                    mui = np.mean(yi, axis=0)
-                    vmu = np.vstack([vmu, mui])
+                mui = np.mean(yi, axis=0)
+                vmu = np.vstack([vmu, mui])
 
-                    ri = yi - np.ones((ni, 1)) @ mui.reshape(1, -1)
-                    COV_Sum += np.cov(ri.T) * (ni - 1)
+                ri = yi - np.ones((ni, 1)) @ mui.reshape(1, -1)
+                COV_Sum += np.cov(ri.T) * (ni - 1)
 
-                    build_covar_star = np.hstack([build_covar_star, ri.T])
+                build_covar_star = np.hstack([build_covar_star, ri.T])
 
-            g_n = gsize[mask]
-            N_n = int(np.sum(g_n))
-            k_n = len(g_n)
+        g_n = gsize[mask]
+        N_n = int(np.sum(g_n))
+        k_n = len(g_n)
 
-            COV_Sum = COV_Sum / (N_n - k_n)
+        COV_Sum = COV_Sum / (N_n - k_n)
 
-            eig_gamma_hat = np.linalg.eigvalsh(COV_Sum)
-            eig_gamma_hat = eig_gamma_hat[eig_gamma_hat > 0]
+        eig_gamma_hat = np.linalg.eigvalsh(COV_Sum)
+        eig_gamma_hat = eig_gamma_hat[eig_gamma_hat > 0]
 
-            q = k_n - 1
-            T_null = utils.chi_sq_mixture(q, eig_gamma_hat, self.n_simul)
+        match self.hypothesis:
+            case 'FAMILY' | 'PAIRWISE':
+                q = k_n - 1
+            case  'PRIMARY' | 'SECONDARY' | "INTERACTION":
+                q = np.linalg.matrix_rank(contrast)
+            case _:
+                raise ValueError(f'Unknown Hypothesis: f{self.hypothesis}')
+             
+        T_null = utils.chi_sq_mixture(q, eig_gamma_hat, self.n_simul)
 
-            T_NullFitted = stats.gaussian_kde(T_null)
-            pvalue = 1 - T_NullFitted.integrate_box_1d(-np.inf, stat0)
-            pvalue = max(0,min(1,pvalue))
-            pstat = [stat0, pvalue]
-            
-            if self.show_simul_plots:
-                self._plot_test_stats(pvalue, T_null, stat0, method, scedasticity='heteroscedastic', k=k_n, N=N_n)
+        T_NullFitted = stats.gaussian_kde(T_null)
+        pvalue = 1 - T_NullFitted.integrate_box_1d(-np.inf, stat0)
+        pvalue = max(0,min(1,pvalue))
+        pstat = [stat0, pvalue]
+        
+        if self.show_simul_plots:
+            self._plot_test_stats(pvalue, T_null, stat0, method, scedasticity='heteroscedastic', k=k_n, N=N_n)
 
 
     else:
