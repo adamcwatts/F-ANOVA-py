@@ -37,7 +37,7 @@ class PlotOptions:
         data_line_width: float = 1.75,
         mean_line_width: float = 5,
         font_size: int = 18,
-        title_labels: Optional[Any] = None,
+        title_labels: str = '',
         save_path: str = "",
         legend_location: str = "best",
         num_columns: int = 1,
@@ -124,7 +124,7 @@ def plot_means(self, plot_type):
         the_labels = self._labels.group
         n_labels = self.n_i
     else:
-        self._setup_twoway(self)
+        self._setup_twoway()
 
         if plot_type in ['DEFAULT', 'PRIMARY']:
             plot_type = 'PRIMARY'
@@ -339,7 +339,7 @@ def plot_means(self, plot_type):
                 line, = ax.plot(self.d_grid, mean_groups[k], color=color_list[k], linewidth=self.plottingOptions.mean_line_width, linestyle='--')
                 plot_means.append(line)
 
-            ax.set_title(f'F-ANOVA Primary and Secondary Factor Combinatorial Means and Realizations {self.plottingOptions.title_labels}', fontsize=self.plottingOptions.font_size)
+            ax.set_title(f'F-ANOVA Primary and Secondary Factor Combinatorial Means and Realizations\n{self.plottingOptions.title_labels}', fontsize=self.plottingOptions.font_size)
             lg = ax.legend(plot_means + legend_example_lines, mean_labels + data_labels, loc=self.plottingOptions.legend_location, ncol=self.plottingOptions.num_columns)
 
             if not self.plottingOptions.legend_title:

@@ -240,6 +240,9 @@ class functionalANOVA():
                 "The plot types ['PRIMARY', 'SECONDARY', 'INTERACTION'] are only valid for two-way analyses, "
                 "which require providing a subgroup_indicator. "
                 "Use plot_type='DEFAULT' for one-way analyses.")
+        else:
+            assert plot_type.upper() in ['PRIMARY', 'SECONDARY', 'INTERACTION', 'DEFAULT'], (f"Invalid plot_type '{plot_type}'. " 
+                "The plot types ['PRIMARY', 'SECONDARY', 'INTERACTION', 'DEFAULT'] are only valid for two-way analyses")
 
         return plotting.plot_means(self, plot_type)
 
