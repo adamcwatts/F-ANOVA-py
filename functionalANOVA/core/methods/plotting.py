@@ -140,7 +140,7 @@ def plot_means(self, plot_type):
 
         elif plot_type == "INTERACTION":
             the_labels = utils.generate_two_way_comb(self)
-            n_labels = np.concatenate([item for sublist in self.n_ii for item in sublist])
+            n_labels = np.concatenate([item for item in self.n_ii])
 
     if self.plottingOptions.observation_size_label:
         if self._labels.generic_group:
