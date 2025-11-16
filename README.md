@@ -6,7 +6,7 @@ Adapted by Adam C. Watts and Shankar Chawla
 ### Usage 
 Clone the repository 
 ```sh 
-https://github.com/shankarchawla1776/F-ANOVA-py.git
+git clone https://github.com/shankarchawla1776/F-ANOVA-py.git
 cd F-ANOVA-py 
 ```
 Create a virtual environment
