@@ -284,12 +284,17 @@ class functionalANOVA():
                   n_boot: int = 10_000,
                   n_simul: int = 10_000,
                   alpha: float = 0.05,
+                  seed: Optional[int] = None,
                   methods: Optional[Sequence[str]] = None,
                   hypothesis: Optional[Sequence[str]] = None):
         # TODO: need to add args of GroupLabels and showSimulPlot arguments
 
         #Sometype of checking for inputs above
-        self._validate_stat_inputs(alpha, n_boot, n_simul, methods, hypothesis)
+        self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
+
+        if seed is not None: 
+            np.random.seed(seed) 
+        
         n_methods = len(self._methods.anova_methods_used)
 
         eta_i, eta_grand, build_Covar_star = utils.compute_group_means(self._groups.k, self.n_domain_points, self.data, self.n_i, self.N)
@@ -342,12 +347,16 @@ class functionalANOVA():
                   n_boot: int = 10_000,
                   n_simul: int = 10_000,
                   alpha: float = 0.05,
+                  seed: Optional[int] = None,
                   methods: Optional[Sequence[str]] = None,
                   hypothesis: Optional[Sequence[str]] = None):
 
         # TODO:  need to add args of GroupLabels and showSimulPlot arguments
         # Sometype of checking for inputs above
-        self._validate_stat_inputs(alpha, n_boot, n_simul, methods, hypothesis)
+        self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
+
+        if seed is not None: 
+            np.random.seed(seed) 
 
         n_methods = len(self._methods.anova_methods_used)
 
@@ -401,7 +410,7 @@ class functionalANOVA():
         c = 0  # Assuming Equality to each other and not a generic constant
         statistic = np.nan
 
-        for method in  self._methods.anova_methods_used:
+        for method in self._methods.anova_methods_used:
             p_value = np.zeros(n_tests)
 
             for ii in range(n_tests):
@@ -430,6 +439,7 @@ class functionalANOVA():
         n_boot: int = 10_000,
         n_simul: int = 10_000,
         alpha: float = 0.05,
+        seed: Optional[int] = None,
         methods: Optional[Sequence[str]] = None,
         hypothesis: Optional[Sequence[str]] = None,
         subgroup_indicator: Union[np.ndarray, List[np.ndarray], None] = None,
@@ -438,9 +448,12 @@ class functionalANOVA():
         secondary_labels: Optional[Sequence[str]] = None,
         weights: Optional[Literal["proportional", "uniform"]] = None
     ):
-        self._validate_stat_inputs(alpha, n_boot, n_simul, methods, hypothesis)
+        self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
         self._validate_twoway_inputs(contrast, primary_labels, secondary_labels, weights)
 
+        if seed is not None: 
+            np.random.seed(seed) 
+        
         if self._groups.subgroup_indicator is None:
             raise ValueError('subgroup_indicator must be provided for twoway ANOVAs')
         else:
@@ -495,6 +508,7 @@ class functionalANOVA():
         n_boot: int = 10_000,
         n_simul: int = 10_000,
         alpha: float = 0.05,
+        seed: Optional[int] = None,
         methods: Optional[Sequence[str]] = None,
         hypothesis: Optional[Sequence[str]] = None,
         subgroup_indicator: Union[np.ndarray, List[np.ndarray], None] = None,
@@ -503,9 +517,12 @@ class functionalANOVA():
         secondary_labels: Optional[Sequence[str]] = None,
         weights: Optional[Literal["proportional", "uniform"]] = None
     ):
-        self._validate_stat_inputs(alpha, n_boot, n_simul, methods, hypothesis)
+        self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
         self._validate_twoway_inputs(contrast, primary_labels, secondary_labels, weights)
 
+        if seed is not None: 
+            np.random.seed(seed) 
+        
         if self._groups.subgroup_indicator is None:
             raise ValueError('subgroup_indicator must be provided for twoway ANOVAs')
         else:
@@ -783,7 +800,7 @@ class functionalANOVA():
 
         #TODO need to validate more inputs
 
-    def _validate_stat_inputs(self, alpha, n_boot, n_simul, methods, hypothesis):
+    def _validate_stat_inputs(self, alpha, n_boot, n_simul, seed, methods, hypothesis):
         # Validate alpha
         if not (0 < alpha < 1):
             raise ValueError(f"alpha must be between 0 and 1, got {alpha}")
@@ -809,6 +826,12 @@ class functionalANOVA():
             self._cast_anova_methods(methods)
         else:
             self._methods.anova_methods_used = self._methods.anova_methods
+
+        # Validate seed 
+        if seed is not None: 
+            if not isinstance(seed, int):
+                raise ValueError(f"seed must be an integer, got {seed}")
+        self.seed = seed 
 
         # Validate hypothesis: Family or Pairwise
         if hypothesis is not None:
