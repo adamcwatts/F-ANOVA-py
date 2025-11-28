@@ -3,7 +3,9 @@ from scipy.stats import chi2, gaussian_kde
 from functionalANOVA.core import utils
 
 # TODO: Needs work
-def k_group_cov_pairwise(self, method, y1, y2):
+def k_group_cov_pairwise(self, method, y1, y2, seed=None):
+
+    rng = self._get_rng(seed)
 
     n1, L = y1.shape
     n2, _ = y2.shape
@@ -71,7 +73,7 @@ def k_group_cov_pairwise(self, method, y1, y2):
         eig_gamma_hat = np.real(np.linalg.eigvals(omega_hat))
         eig_gamma_hat = eig_gamma_hat[eig_gamma_hat > 0]
 
-        T_null = chi_sq_mixture(q, eig_gamma_hat, self.n_simul)
+        T_null = utils.chi_sq_mixture(q, eig_gamma_hat, self.n_simul, rng)
         kde = gaussian_kde(T_null)
         pvalue = 1 - kde.integrate_box_1d(-np.inf, stat)
         pvalue = max(0,min(1,pvalue))
@@ -108,8 +110,8 @@ def k_group_cov_pairwise(self, method, y1, y2):
         k = 2
 
         def bootstrap_iteration(ii):
-            flag1 = np.random.choice(n1, n1, replace=True)
-            flag2 = np.random.choice(n2, n2, replace=True)
+            flag1 = rng.choice(n1, n1, replace=True)
+            flag2 = rng.choice(n2, n2, replace=True)
 
             yy1 = y1[flag1, :]
             yy2 = y2[flag2, :]
@@ -165,7 +167,7 @@ def k_group_cov_pairwise(self, method, y1, y2):
         Y = np.vstack([y1, y2])
 
         def permutation_iteration(ii):
-            flag = np.random.permutation(N)
+            flag = rng.permutation(N)
             Y_perm = Y[flag, :]
             yy1 = Y_perm[:n1, :]
             yy2 = Y_perm[n1:, :]
@@ -215,7 +217,10 @@ def k_group_cov_pairwise(self, method, y1, y2):
     return pvalue
 
 # TODO: Needs work
-def k_group_cov(self, method, stat, Sigma, V):
+def k_group_cov(self, method, stat, Sigma, V, seed=None):
+
+    rng = self._get_rng(seed)
+
     gsize = self.n_i
     N = self.N
     k = self.k_groups
@@ -260,7 +265,7 @@ def k_group_cov(self, method, stat, Sigma, V):
         eig_gamma_hat = np.real(np.linalg.eigvals(omega_hat))
         eig_gamma_hat = eig_gamma_hat[eig_gamma_hat > 0]
 
-        T_null = chi_sq_mixture(q, eig_gamma_hat, self.n_simul)
+        T_null = utils.chi_sq_mixture(q, eig_gamma_hat, self.n_simul, rng)
         kde = gaussian_kde(T_null)
         pvalue = 1 - kde.integrate_box_1d(-np.inf, stat)
         pvalue = max(0,min(1,pvalue))
@@ -298,12 +303,12 @@ def k_group_cov(self, method, stat, Sigma, V):
         pvalue = 1 - chi2.cdf(stat / alpha, df)
 
     elif method == "Bootstrap-Test":
-        aflag = aflag_maker(gsize)
+        aflag = utils.aflag_maker(gsize)
         aflag0 = np.unique(aflag)
         vstat = np.zeros(self.n_boot)
 
         for ii in range(self.n_boot):
-            flag = np.random.choice(N, N, replace=True)
+            flag = rng.choice(N, N, replace=True)
             py = V[flag, :]
 
             R = []
@@ -343,12 +348,12 @@ def k_group_cov(self, method, stat, Sigma, V):
         pvalue = 1 - np.sum(vstat < stat) / self.n_boot
 
     elif method == "Permutation-Test":
-        aflag = aflag_maker(gsize)
+        aflag = utils.aflag_maker(gsize)
         aflag0 = np.unique(aflag)
 
         vstat = np.zeros(self.N_permutations)
         for ii in range(self.N_permutations):
-            flag = np.random.permutation(N)
+            flag = rng.permutation(N)
             py = V[flag, :]
 
             R = []
@@ -391,7 +396,10 @@ def k_group_cov(self, method, stat, Sigma, V):
     return pvalue
 
 # TODO: Needs work
-def two_group_cov(self, method, y1, y2):
+def two_group_cov(self, method, y1, y2, seed=None):
+
+    rng = self._get_rng(seed)
+
     n1, L = y1.shape
     n2, _ = y2.shape
 
@@ -429,7 +437,7 @@ def two_group_cov(self, method, y1, y2):
         eig_gamma_hat = np.real(np.linalg.eigvals(omega_hat))
         eig_gamma_hat = eig_gamma_hat[eig_gamma_hat > 0]
 
-        T_null = utils.chi_sq_mixture(q, eig_gamma_hat, self.n_simul)
+        T_null = utils.chi_sq_mixture(q, eig_gamma_hat, self.n_simul, rng)
 
         kde = gaussian_kde(T_null)
         pvalue = 1 - kde.integrate_box_1d(-np.inf, stat)
@@ -466,8 +474,8 @@ def two_group_cov(self, method, y1, y2):
         vstat = np.zeros(self.n_boot)
 
         for ii in range(self.n_boot):
-            flag1 = np.random.choice(n1, n1, replace=True)
-            flag2 = np.random.choice(n2, n2, replace=True)
+            flag1 = rng.choice(n1, n1, replace=True)
+            flag2 = rng.choice(n2, n2, replace=True)
 
             yy1 = y1[flag1, :]
             yy2 = y2[flag2, :]
@@ -486,7 +494,7 @@ def two_group_cov(self, method, y1, y2):
         yy = np.vstack((y1_centered, y2_centered))
 
         for ii in range(self.N_permutations):
-            flag = np.random.permutation(N)
+            flag = rng.permutation(N)
 
             yy1 = yy[flag[:n1], :]
             yy2 = yy[flag[n1:], :]
