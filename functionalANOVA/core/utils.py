@@ -9,9 +9,10 @@ from scipy.stats import chi2, ncx2, f
 from scipy.linalg import inv, sqrtm
 
 
-def chi_sq_mixture(df, coefs, N_samples):
+def chi_sq_mixture(df, coefs, N_samples, rng):
     n_eigs = len(coefs)
-    chi2rvs = np.random.chisquare(df, size=(n_eigs, N_samples))
+    # chi2rvs = np.random.chisquare(df, size=(n_eigs, N_samples))
+    chi2rvs = rng.chisquare(df, size=(n_eigs, N_samples))
     T_null = (coefs @ chi2rvs)
     return T_null
 
@@ -23,7 +24,7 @@ def aflag_maker(n_i):
         aflag.extend(indicator)
     return np.array(aflag)
 
-def l2_bootstrap(obj, yy, method):
+def l2_bootstrap(obj, yy, method, rng):
     n, p = yy.shape
 
     gsize = np.array(obj.n_i)
@@ -66,7 +67,7 @@ def l2_bootstrap(obj, yy, method):
             yi = yy[iflag, :]
             ni = gsize[i]
 
-            btflag = np.random.choice(ni, ni, replace=True)
+            btflag = rng.choice(ni, ni, replace=True)
             btyi = yi[btflag, :]
 
             btmui = np.mean(btyi, axis=0) - vmu[i, :]
@@ -85,7 +86,7 @@ def l2_bootstrap(obj, yy, method):
 
     return  np.expand_dims(btstat, axis=1)
 
-def f_bootstrap(obj, yy, method):
+def f_bootstrap(obj, yy, method, rng):
     n, p = yy.shape
 
     gsize = np.array(obj.n_i)
@@ -137,7 +138,8 @@ def f_bootstrap(obj, yy, method):
             iflag = (aflag == aflag0[i])
             yi = yy[iflag, :]
             ni = gsize[i]
-            btflag = np.random.choice(ni, ni, replace=True)
+            # btflag = np.random.choice(ni, ni, replace=True)
+            btflag = rng.choice(ni, ni, replace=True)
 
             btyi = yi[btflag, :]
             btmui = np.mean(btyi, axis=0)
@@ -165,7 +167,7 @@ def f_bootstrap(obj, yy, method):
 
     # p_value = np.mean(btstat >= stat)
 
-    return  np.expand_dims(btstat, axis=1) 
+    return  np.expand_dims(btstat, axis=1)
 
 def generate_two_way_comb(self):
     combinations = []
@@ -176,7 +178,7 @@ def generate_two_way_comb(self):
     return combinations
 
 def construct_pairwise_contrast_matrix(total_groups: int) -> np.ndarray:
-    
+
     """
     Construct all pairwise contrast coefficient rows for total_groups.
     Returns a contrast matrix C of shape (num_pairs, total_groups).
@@ -211,7 +213,7 @@ def compute_group_means(k_groups, n_domain_points, data, n_i, N):
 
     # Compute grand mean
     eta_grand = np.sum(eta_i * np.asarray(n_i)[np.newaxis, :], axis=1) / N
-    
+
     return eta_i, eta_grand, build_Covar_star
 
 def beta_hat(COV):
@@ -251,12 +253,13 @@ def beta_hat_unbias(n, k, COV):
 def kappa_hat_unbias(n, k, COV):
     return unbiased_estimator_trace_squared(n, k, COV) / unbiased_estimator_trace_cov_squared(n, k, COV)
 
-def group_booter(data_matrix_cell, n_domain_points, k_groups, n_i, n):
+def group_booter(data_matrix_cell, n_domain_points, k_groups, n_i, n, rng):
     eta_i_star = np.zeros((n_domain_points, k_groups))
     build_covar_star = np.zeros((n_domain_points, 0))
 
     for k in range(k_groups):
-        indices = np.random.choice(data_matrix_cell[k].shape[1], n_i[k], replace=True)
+        # indices = np.random.choice(data_matrix_cell[k].shape[1], n_i[k], replace=True)
+        indices = rng.choice(data_matrix_cell[k].shape[1], n_i[k], replace=True)
         data_subset_boot = data_matrix_cell[k][:,indices]
 
         eta_i_star[:,k] = np.mean(data_subset_boot, axis=1)

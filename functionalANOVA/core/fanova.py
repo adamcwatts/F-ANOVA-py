@@ -284,7 +284,7 @@ class functionalANOVA():
                   n_boot: int = 10_000,
                   n_simul: int = 10_000,
                   alpha: float = 0.05,
-                  seed: Optional[int] = None,
+                  seed: Optional[Union[int, np.random.Generator]] = None,
                   methods: Optional[Sequence[str]] = None,
                   hypothesis: Optional[Sequence[str]] = None):
         # TODO: need to add args of GroupLabels and showSimulPlot arguments
@@ -292,9 +292,6 @@ class functionalANOVA():
         #Sometype of checking for inputs above
         self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
 
-        if seed is not None: 
-            np.random.seed(seed) 
-        
         n_methods = len(self._methods.anova_methods_used)
 
         eta_i, eta_grand, build_Covar_star = utils.compute_group_means(self._groups.k, self.n_domain_points, self.data, self.n_i, self.N)
@@ -347,7 +344,7 @@ class functionalANOVA():
                   n_boot: int = 10_000,
                   n_simul: int = 10_000,
                   alpha: float = 0.05,
-                  seed: Optional[int] = None,
+                  seed: Optional[Union[int, np.random.Generator]] = None,
                   methods: Optional[Sequence[str]] = None,
                   hypothesis: Optional[Sequence[str]] = None):
 
@@ -355,8 +352,8 @@ class functionalANOVA():
         # Sometype of checking for inputs above
         self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
 
-        if seed is not None: 
-            np.random.seed(seed) 
+        # if seed is not None:
+        #     np.random.seed(seed)
 
         n_methods = len(self._methods.anova_methods_used)
 
@@ -422,7 +419,7 @@ class functionalANOVA():
                 else:
                     raise ValueError(f"Unsupported hypothesis type: {self.hypothesis}")
 
-                p_value[ii], statistic = self._run_onewayBF(method, yy, C_input, c)
+                p_value[ii], statistic = self._run_onewayBF(method, yy, C_input, c, self.rng)
 
             p_value_matrix[:, counter] = p_value
             test_stat[0, counter] = statistic
@@ -439,7 +436,7 @@ class functionalANOVA():
         n_boot: int = 10_000,
         n_simul: int = 10_000,
         alpha: float = 0.05,
-        seed: Optional[int] = None,
+        seed: Optional[Union[int, np.random.Generator]] = None,
         methods: Optional[Sequence[str]] = None,
         hypothesis: Optional[Sequence[str]] = None,
         subgroup_indicator: Union[np.ndarray, List[np.ndarray], None] = None,
@@ -451,9 +448,6 @@ class functionalANOVA():
         self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
         self._validate_twoway_inputs(contrast, primary_labels, secondary_labels, weights)
 
-        if seed is not None: 
-            np.random.seed(seed) 
-        
         if self._groups.subgroup_indicator is None:
             raise ValueError('subgroup_indicator must be provided for twoway ANOVAs')
         else:
@@ -491,7 +485,7 @@ class functionalANOVA():
                         C_input = C  # for CUSTOM or any other hypothesis
 
                 # Run the TwoWay test
-                p_value, statistic = self._run_twoway(method, yy, C_input)
+                p_value, statistic = self._run_twoway(method, yy, C_input, self.rng)
                 p_values[ii] = p_value
 
             # Store results
@@ -508,7 +502,7 @@ class functionalANOVA():
         n_boot: int = 10_000,
         n_simul: int = 10_000,
         alpha: float = 0.05,
-        seed: Optional[int] = None,
+        seed: Optional[Union[int, np.random.Generator]] = None,
         methods: Optional[Sequence[str]] = None,
         hypothesis: Optional[Sequence[str]] = None,
         subgroup_indicator: Union[np.ndarray, List[np.ndarray], None] = None,
@@ -520,9 +514,6 @@ class functionalANOVA():
         self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
         self._validate_twoway_inputs(contrast, primary_labels, secondary_labels, weights)
 
-        if seed is not None: 
-            np.random.seed(seed) 
-        
         if self._groups.subgroup_indicator is None:
             raise ValueError('subgroup_indicator must be provided for twoway ANOVAs')
         else:
@@ -827,11 +818,14 @@ class functionalANOVA():
         else:
             self._methods.anova_methods_used = self._methods.anova_methods
 
-        # Validate seed 
-        if seed is not None: 
-            if not isinstance(seed, int):
-                raise ValueError(f"seed must be an integer, got {seed}")
-        self.seed = seed 
+        # Validate seed or RNG (best practice)
+        if seed is not None:
+            if not isinstance(seed, (int, np.random.Generator)):
+                raise ValueError(f"seed must be an integer or a Generator, got {type(seed).__name__} with value {seed}")
+        self.rng = self._get_rng(seed)
+
+        # TODO: ideally, delete the line below and replace all np.random.* calls with self.rng.*
+        # np.random.set_state(self.rng.bit_generator.state)
 
         # Validate hypothesis: Family or Pairwise
         if hypothesis is not None:
@@ -855,25 +849,25 @@ class functionalANOVA():
             self.hypothesis = hypothesis.upper()
 
     def _validate_twoway_inputs(self, contrast, primary_labels, secondary_labels, weights):
-        # arg 'subgroup_indicator' already validated by _setup_twoway() 
-        if contrast is not None: 
+        # arg 'subgroup_indicator' already validated by _setup_twoway()
+        if contrast is not None:
             if not isinstance(contrast, np.ndarray):
                 raise ValueError(f"'contrast' must be a NumPy array, got {type(contrast)}")
             if contrast.ndim not in [1,2]:
                 raise ValueError(f"'contrast' must be a 1D or 2D array, got {contrast.ndim}")
 
         self.contrast = contrast
-        
+
         if primary_labels is not None:
             if not isinstance(primary_labels, (list, tuple)):
                 raise ValueError(f"'primary_labels' must be a list or tuple, got {type(primary_labels)}")
-            if not all (isinstance(label, str) for label in primary_labels): 
+            if not all (isinstance(label, str) for label in primary_labels):
                 raise ValueError(f"All labels in 'primary_labels' must be strings")
 
         if secondary_labels is not None:
             if not isinstance(secondary_labels, (list, tuple)):
                 raise ValueError(f"'secondary_labels' must be a list or tuple, got {type(secondary_labels)}")
-            if not all (isinstance(label, str) for label in secondary_labels): 
+            if not all (isinstance(label, str) for label in secondary_labels):
                 raise ValueError(f"All labels in 'secondary_labels' must be strings")
 
         self.primary_labels = primary_labels
@@ -883,10 +877,10 @@ class functionalANOVA():
             if not isinstance(weights, str):
                 raise ValueError(f"'weights' must be a string, got {type(weights)}")
             # weights type is currently checked twice, once in _validate_twoway_inputs() and once in run_twoway()
-            if weights.upper() not in ["UNIFORM", "PROPORTIONAL"]: 
+            if weights.upper() not in ["UNIFORM", "PROPORTIONAL"]:
                 raise ValueError(f"Unsupported weight type: {weights}, must either be 'UNIFORM' or 'PROPORTIONAL'")
 
-            self.weights = weights.upper() 
+            self.weights = weights.upper()
 
     def _validate_domain_response_labels(self, domain_units: None|str, domain_label: None|str , response_units: None|str , response_label: None|str ):
         for name, value in [
@@ -1390,6 +1384,13 @@ class functionalANOVA():
                 C = self._groups.contrast
 
         return C, n_tests
+
+    @staticmethod
+    def _get_rng(seed):
+        if isinstance(seed, np.random.Generator):
+            return seed
+        return np.random.Generator(np.random.PCG64(seed)) # np.random.PCG64(None) is valid
+
     @staticmethod
     def _cast_to_1D(arr):
         arr = np.asarray(arr)
@@ -1403,6 +1404,7 @@ class functionalANOVA():
             return np.ravel(arr)  # returns a view if possible
         else:
             raise ValueError(f"Input must be a 1D vector, or 2D row/column vector, but got array with shape {arr.shape}")
+
     @staticmethod
     def sanitize_contrast(c):
         if c is None:

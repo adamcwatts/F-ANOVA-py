@@ -8,7 +8,7 @@ from functionalANOVA.core import utils
 from functionalANOVA.core.methods.oneway import run_onewayBF
 
 # TODO: Check Pairwise hypothesis
-def run_twoway(self, method, data, contrast):
+def run_twoway(self, method, data, contrast, rng):
 
     N = self.N
     ddim = self.n_domain_points
@@ -163,7 +163,7 @@ def run_twoway(self, method, data, contrast):
             eig_gamma_hat = np.linalg.eigvalsh(Pooled_COVAR)
             eig_gamma_hat = eig_gamma_hat[eig_gamma_hat > 0]
 
-            SSH_null = utils.chi_sq_mixture(r, eig_gamma_hat, self.n_simul)
+            SSH_null = utils.chi_sq_mixture(r, eig_gamma_hat, self.n_simul, self.rng)
             SSH_NullFitted = stats.gaussian_kde(SSH_null)
             pvalue = 1 - SSH_NullFitted.integrate_box_1d(-np.inf, stat)
             pvalue = max(0,min(1,pvalue))
@@ -184,8 +184,8 @@ def run_twoway(self, method, data, contrast):
             eig_gamma_hat = np.linalg.eigvalsh(Pooled_COVAR)
             eig_gamma_hat = eig_gamma_hat[eig_gamma_hat > 0]
 
-            SSH_null = utils.chi_sq_mixture(r, eig_gamma_hat, self.n_simul)
-            SSE_null = utils.chi_sq_mixture(N-k, eig_gamma_hat, self.n_simul)
+            SSH_null = utils.chi_sq_mixture(r, eig_gamma_hat, self.n_simul, self.rng)
+            SSE_null = utils.chi_sq_mixture(N-k, eig_gamma_hat, self.n_simul, self.rng)
 
             ratio = (N-k) / r
 
@@ -207,7 +207,8 @@ def run_twoway(self, method, data, contrast):
                             ijflag = (aflag==aflag0[i]) & (bflag == bflag0[j])
                             ni = n_ii[counter]
                             yi = yy[ijflag,:]
-                            Bootflag = np.random.choice(ni,ni,replace=True)
+                            # Bootflag = np.random.choice(ni,ni,replace=True)
+                            Bootflag = rng.choice(ni,ni,replace=True)
 
                             Byi = yi[Bootflag,:]
                             Bmui = np.mean(Byi, axis=0)
@@ -241,7 +242,8 @@ def run_twoway(self, method, data, contrast):
                         ni = n_ii[counter]
 
                         yi = yy[ijflag, :]
-                        Bootflag = np.random.randint(0, ni, size=ni)
+                        # Bootflag = np.random.randint(0, ni, size=ni)
+                        Bootflag = rng.integers(0, ni, size=ni)
                         Byi = yi[Bootflag, :]
                         Bmui = np.mean(Byi, axis=0)
                         Bmu[counter] = Bmui
@@ -344,6 +346,6 @@ def run_twowayBF(self, method, data, contrast, c):
     pure_data = yy[:,1:]
     A = yy[:,0]
 
-    pvalue, stat = run_onewayBF(self, method, pure_data, contrast_final, c, indicator_a=A)
+    pvalue, stat = run_onewayBF(self, method, pure_data, contrast_final, c, self.rng, indicator_a=A)
 
     return pvalue, stat

@@ -1,10 +1,4 @@
-# *.txt
 *.lock
-# *.toml
-functional_ANOVA.py
-
-
-
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -24,7 +24,7 @@ def run_oneway(self, eig_gamma_hat, eta_i, params, H0):
 
         match method:
          case "L2-Simul":
-            T_null = utils.chi_sq_mixture(H0.q, eig_gamma_hat, self.n_simul)
+            T_null = utils.chi_sq_mixture(H0.q, eig_gamma_hat, self.n_simul, self.rng)
 
             T_NullFitted = stats.gaussian_kde(T_null)
 
@@ -83,17 +83,17 @@ def run_oneway(self, eig_gamma_hat, eta_i, params, H0):
                         else:
                             yy = np.vstack([yy, self.data[j].T])
 
-                    T_n_Boot= utils.l2_bootstrap(self, yy,  method)
+                    T_n_Boot= utils.l2_bootstrap(self, yy,  method, self.rng)
 
                     utils.update_family_table(self._tables.oneway, method, [self.n_boot])
-                
+
                 case "PAIRWISE":
                     # n_tests is the number of tests; n = self.N is real n
                     for j in range(H0.n_tests):
                         self._labels.hypothesis = H0.pair_vec[j]
                         Ct = H0.C[j, :]
                         for k in tqdm(range(self.n_boot), desc=self._setup_time_bar(method)):
-                            eta_i_star, _, _ = utils.group_booter(self.data, self.n_domain_points, self._groups.k, self.n_i, self.N)
+                            eta_i_star, _, _ = utils.group_booter(self.data, self.n_domain_points, self._groups.k, self.n_i, self.N, self.rng)
                             rh_side = Ct @ H0.D @ Ct.T
                             if rh_side.ndim == 0:
                                 SSH_t = ((Ct @ (eta_i_star - eta_i).T)**2) * 1/rh_side
@@ -115,8 +115,8 @@ def run_oneway(self, eig_gamma_hat, eta_i, params, H0):
          case "F-Simul":
 
             ratio = (self.N - self._groups.k) / H0.q
-            T_null = utils.chi_sq_mixture(H0.q, eig_gamma_hat, self.n_simul)
-            F_null_denom = utils.chi_sq_mixture(self.N - self._groups.k, eig_gamma_hat, self.n_simul)
+            T_null = utils.chi_sq_mixture(H0.q, eig_gamma_hat, self.n_simul, self.rng)
+            F_null_denom = utils.chi_sq_mixture(self.N - self._groups.k, eig_gamma_hat, self.n_simul, self.rng)
             F_null = (T_null / F_null_denom) * ratio
             F_NullFitted = stats.gaussian_kde(F_null)
 
@@ -125,7 +125,7 @@ def run_oneway(self, eig_gamma_hat, eta_i, params, H0):
             for j in range(H0.n_tests):
                 p_value[j] = 1 - F_NullFitted.integrate_box_1d(-np.inf, params.F_n[j])
                 p_value[j] = max(0,min(1,p_value[j]))
-                
+
                 if self.show_simul_plots:
                     self._plot_test_stats(p_value[j], F_null, params.F_n[j], method, scedasticity='homoscedastic', k=self._groups.k, N=self.N)
 
@@ -185,7 +185,7 @@ def run_oneway(self, eig_gamma_hat, eta_i, params, H0):
                             yy = self.data[j].T
                         else:
                             yy = np.vstack([yy, self.data[j].T])
-                    F_n_Boot = utils.f_bootstrap(self, yy, method)
+                    F_n_Boot = utils.f_bootstrap(self, yy, method, self.rng)
                     utils.update_family_table(self._tables.oneway, method, [self.n_boot])
 
                 case "PAIRWISE":
@@ -196,11 +196,11 @@ def run_oneway(self, eig_gamma_hat, eta_i, params, H0):
                         Ct = H0.C[j, :]
 
                         for k in tqdm(range(self.n_boot), desc=self._setup_time_bar(method)):
-                            eta_i_star, _, gamma_hat_star = utils.group_booter(self.data, self.n_domain_points, self._groups.k, self.n_i, self.N)
+                            eta_i_star, _, gamma_hat_star = utils.group_booter(self.data, self.n_domain_points, self._groups.k, self.n_i, self.N, self.rng)
                             f_n_Denominator_Boot[k,j] = np.trace(gamma_hat_star) * (self.N - self._groups.k)
-                            
+
                             rh_side = Ct @ H0.D @ Ct.T
-                            
+
                             if rh_side.ndim == 0:
                                 SSH_t = ((Ct @ (eta_i_star - eta_i).T)**2) * 1/rh_side
                             else:
@@ -208,7 +208,7 @@ def run_oneway(self, eig_gamma_hat, eta_i, params, H0):
 
                             T_n_Boot = np.sum(SSH_t)
                             F_n_Boot[k,:] = (T_n_Boot / f_n_Denominator_Boot[k,j]) * ratio
-                            
+
                 case _:
                     raise ValueError(f'Unsupported hypothesis: {self.hypothesis}')
 
@@ -231,7 +231,7 @@ def run_oneway(self, eig_gamma_hat, eta_i, params, H0):
 
 
 # Completed
-def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
+def run_onewayBF(self, method, data, contrast, c, rng, indicator_a=None):
 
     N = self.N
     p = self.n_domain_points
@@ -305,18 +305,18 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
             B2 = np.append(B2, B2i)
 
     D = np.diag(1/gsize)
-    
+
     if contrast.ndim == 2:
         H = np.array(sqrtm((inv(contrast @ D @ contrast.T))))
         stat0 = np.trace(H @ (contrast @ vmu - c) @ (contrast @ vmu-c).T @ H.T)
     else:
-        H = np.sqrt(np.divide(1.0, contrast @ D @ contrast.T)) 
+        H = np.sqrt(np.divide(1.0, contrast @ D @ contrast.T))
         stat0 = np.multiply(H, (contrast @ vmu - c)) @ np.multiply( (contrast @ vmu-c).T, H.T)
-    
+
 
     if method in ["L2-Naive", "L2-BiasReduced", "F-Naive", "F-BiasReduced"]:
         Dh = np.sqrt(D)
-        
+
         if contrast.ndim == 2:
             W = Dh @ contrast.T @ H.T @ H @ contrast @ Dh
         else:
@@ -357,7 +357,7 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
                 K2b += 2 * W[i, j]**2 * temp
 
                 AB2.append(temp)
-                
+
         if method in ["L2-Naive", "L2-BiasReduced"]:
             beta = K2b / K1
             df = K2a / K2b
@@ -381,7 +381,7 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
     elif method in ["F-Bootstrap", "F-Simul"]:
         Dh = np.sqrt(D)
         # k by k
-        
+
         if contrast.ndim == 2:
             W = Dh @ contrast.T @ H.T @ H @ contrast @ Dh
         else:
@@ -419,10 +419,10 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
             A_n = D**0.5 @ contrast.T @ inv(contrast @ D @ contrast.T) @ contrast @ D**0.5
             A_n_ii = np.diag(A_n)
             mask = np.ones(k, dtype=bool)
-            
+
         else:
             raise ValueError(f"Unsupported hypothesis: {self.hypothesis}")
-        
+
         if method == "F-Bootstrap":
             Bstat = np.zeros(self.n_boot)
             is_matrix_contrast = contrast.ndim == 2
@@ -435,7 +435,8 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
                     yi = yy[iflag, :]
                     ni = int(gsize[i])
 
-                    Bflag = np.random.randint(0, ni, size=ni)
+                    # Bflag = np.random.randint(0, ni, size=ni)
+                    Bflag = rng.integers(0, ni, size=ni)
                     Byi = yi[Bflag, :]
 
                     Bmui = np.mean(Byi, axis=0)
@@ -464,10 +465,10 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
 
             pvalue = np.mean(Bstat > f_stat)
             pstat = [f_stat, pvalue]
-            
+
         elif method == "F-Simul":
             Dh = np.sqrt(D) # kxk
-            
+
             if contrast.ndim == 2:
                 W = Dh @ contrast.T @ H.T @ H @ contrast @ Dh
             else:
@@ -476,7 +477,7 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
             dd = np.diag(W)
             K1 = np.sum(dd * A)
             f_stat = stat0 / K1
-            
+
             build_covar_star = np.zeros((self.n_domain_points, 0))
             COV_Sum = 0
             vmu = np.empty((0, p))
@@ -512,8 +513,8 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
                     q = np.linalg.matrix_rank(contrast)
                 case _:
                     raise ValueError(f'Unknown Hypothesis: f{self.hypothesis}')
-                
-            T_null = utils.chi_sq_mixture(q, eig_gamma_hat, self.n_simul)
+
+            T_null = utils.chi_sq_mixture(q, eig_gamma_hat, self.n_simul, self.rng)
 
             S_null = np.zeros(self.n_simul)
             S_ii_subset = np.asarray([S_ii[i] for i in range(k) if mask[i]])
@@ -522,7 +523,7 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
                 eig_gamma_hat = np.linalg.eigvalsh(S_ii_subset[i])
                 eig_gamma_hat = eig_gamma_hat[eig_gamma_hat > 0]
 
-                S_temp = utils.chi_sq_mixture(int(g_n[i]) - 1, eig_gamma_hat, self.n_simul)
+                S_temp = utils.chi_sq_mixture(int(g_n[i]) - 1, eig_gamma_hat, self.n_simul, self.rng)
                 S_temp = (S_temp * A_n_ii[i]) / (g_n[i] - 1)
                 S_null += S_temp
 
@@ -533,7 +534,7 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
             pvalue = max(0,min(1,pvalue))
 
             pstat = [f_stat, pvalue]
-            
+
             if self.show_simul_plots:
                 self._plot_test_stats(pvalue, T_null, stat0, method, scedasticity='heteroscedastic', k=k_n, N=N_n)
 
@@ -552,7 +553,8 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
                 yi = yy[iflag, :]
                 ni = int(gsize[i])
 
-                Bflag = np.random.randint(0, ni, size=ni)
+                # Bflag = np.random.randint(0, ni, size=ni)
+                Bflag = rng.integers(0, ni, size=ni)
                 Byi = yi[Bflag, :]
                 Bmu[i] = np.mean(Byi, axis=0)
 
@@ -576,7 +578,7 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
             mask = np.any(contrast.T.astype(bool), axis=1)
         else:
             mask = contrast.T.astype(bool)
-        
+
         COV_Sum = 0
         vmu = np.empty((0, p))
 
@@ -612,20 +614,19 @@ def run_onewayBF(self, method, data, contrast, c, indicator_a=None):
                 q = np.linalg.matrix_rank(contrast)
             case _:
                 raise ValueError(f'Unknown Hypothesis: f{self.hypothesis}')
-             
-        T_null = utils.chi_sq_mixture(q, eig_gamma_hat, self.n_simul)
+
+        T_null = utils.chi_sq_mixture(q, eig_gamma_hat, self.n_simul, self.rng)
 
         T_NullFitted = stats.gaussian_kde(T_null)
         pvalue = 1 - T_NullFitted.integrate_box_1d(-np.inf, stat0)
         pvalue = max(0,min(1,pvalue))
         pstat = [stat0, pvalue]
-        
+
         if self.show_simul_plots:
             self._plot_test_stats(pvalue, T_null, stat0, method, scedasticity='heteroscedastic', k=k_n, N=N_n)
 
 
     else:
         raise ValueError(f'Unknown Method: {method}')
-    
-    return pstat[1], pstat[0]
 
+    return pstat[1], pstat[0]
