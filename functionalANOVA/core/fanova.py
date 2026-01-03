@@ -145,7 +145,7 @@ class functionalANOVA():
         self.weights = "proportional"
         self.hypothesis = "FAMILY"
         self.verbose = True
-        self.show_simul_plots = False # Shows Null distribution plots for "Simul" Methods
+        # self.show_simul_plots = False # Shows Null distribution plots for "Simul" Methods
 
         # Validate All Inputs
         self._validate_domain_response_labels(domain_units, domain_label,  response_units, response_label)
@@ -211,7 +211,7 @@ class functionalANOVA():
                    new_colors: Optional[np.ndarray] = None,
                    position: Tuple[int, int, int, int] = (90, 90, 1400, 800)) -> Tuple[Any, Any]:
 
-        self._validate_domain_response_labels(domain_units, domain_label,  response_units, response_label)
+        self._validate_domain_response_labels(domain_units, domain_label, response_units, response_label)
 
 
         # Build updates dictionary from user args
@@ -253,16 +253,35 @@ class functionalANOVA():
                         group_labels: Optional[List[str]] = None,
                         primary_labels: Optional[List[str]] = None,
                         secondary_labels: Optional[List[str]] = None,
-                        x_scale: str = '',
-                        y_scale: str = '',
-                        color_scale: str = '',
-                        domain_units_label: str = '',
-                        response_units_label: str = '',
+                        domain_units: None|str = None,
+                        domain_label: None|str = None,
+                        response_units: None|str = None,
+                        response_label: None|str = None,
+                        x_scale: str = 'linear',
+                        y_scale: str = 'linear',
+                        color_scale: str = 'linear',
+                        font_size: int = 18,
                         title_labels: Optional[Any] = None,
                         save_path: str = '',
                         position: Tuple[int, int, int, int] = (90, 257, 2000, 800)) -> Any:
 
-        return plotting.plot_covariances(self, plot_type, subgroup_indicator, group_labels, primary_labels, secondary_labels, x_scale, y_scale, color_scale, domain_units_label, response_units_label, title_labels, save_path, position)
+        # return plotting.plot_covariances(self, plot_type, subgroup_indicator, group_labels, primary_labels, secondary_labels, x_scale, y_scale, color_scale, domain_units_label, response_units_label, title_labels, save_path, position)
+        self._validate_domain_response_labels(domain_units, domain_label, response_units, response_label)
+
+        updates = dict(
+            x_scale=x_scale,
+            y_scale=y_scale,
+            color_scale=color_scale,
+            font_size=font_size,
+            title_labels=title_labels,
+            save_path=save_path,
+            position=position
+        )
+
+        # update only changed values
+        self.plottingOptions.update_from_dict(updates)
+
+        return plotting.plot_covariances(self, plot_type)
 
     def _plot_test_stats(self, p_value, null_dist, test_stat, test_name,
                          scedasticity:str, k:int, N:int|None=None):
@@ -286,11 +305,12 @@ class functionalANOVA():
                   alpha: float = 0.05,
                   seed: Optional[Union[int, np.random.Generator]] = None,
                   methods: Optional[Sequence[str]] = None,
-                  hypothesis: Optional[Sequence[str]] = None):
-        # TODO: need to add args of GroupLabels and showSimulPlot arguments
+                  hypothesis: Optional[Sequence[str]] = None,
+                  show_simul_plots: Optional[bool] = None,
+                  group_labels: Optional[Union[List[str], Tuple[str, ...]]] = None):
 
-        #Sometype of checking for inputs above
         self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
+        self._validate_plotting_inputs(show_simul_plots, group_labels)
 
         n_methods = len(self._methods.anova_methods_used)
 
@@ -346,14 +366,12 @@ class functionalANOVA():
                   alpha: float = 0.05,
                   seed: Optional[Union[int, np.random.Generator]] = None,
                   methods: Optional[Sequence[str]] = None,
-                  hypothesis: Optional[Sequence[str]] = None):
+                  hypothesis: Optional[Sequence[str]] = None,
+                  show_simul_plots: Optional[bool] = None,
+                  group_labels: Optional[Union[List[str], Tuple[str, ...]]] = None):
 
-        # TODO:  need to add args of GroupLabels and showSimulPlot arguments
-        # Sometype of checking for inputs above
         self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
-
-        # if seed is not None:
-        #     np.random.seed(seed)
+        self._validate_plotting_inputs(show_simul_plots, group_labels)
 
         n_methods = len(self._methods.anova_methods_used)
 
@@ -446,7 +464,8 @@ class functionalANOVA():
         weights: Optional[Literal["proportional", "uniform"]] = None
     ):
         self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
-        self._validate_twoway_inputs(contrast, primary_labels, secondary_labels, weights)
+        self._validate_twoway_inputs(contrast, weights)
+        self._validate_plotting_inputs(primary_labels, secondary_labels)
 
         if self._groups.subgroup_indicator is None:
             raise ValueError('subgroup_indicator must be provided for twoway ANOVAs')
@@ -512,7 +531,8 @@ class functionalANOVA():
         weights: Optional[Literal["proportional", "uniform"]] = None
     ):
         self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
-        self._validate_twoway_inputs(contrast, primary_labels, secondary_labels, weights)
+        self._validate_twoway_inputs(contrast, weights)
+        self._validate_plotting_inputs(primary_labels, secondary_labels)
 
         if self._groups.subgroup_indicator is None:
             raise ValueError('subgroup_indicator must be provided for twoway ANOVAs')
@@ -787,8 +807,6 @@ class functionalANOVA():
 
         # Validate d_grid
         self.d_grid = self._cast_to_1D(self.d_grid)
-
-
         #TODO need to validate more inputs
 
     def _validate_stat_inputs(self, alpha, n_boot, n_simul, seed, methods, hypothesis):
@@ -821,11 +839,8 @@ class functionalANOVA():
         # Validate seed or RNG (best practice)
         if seed is not None:
             if not isinstance(seed, (int, np.random.Generator)):
-                raise ValueError(f"seed must be an integer or a Generator, got {type(seed).__name__} with value {seed}")
+                raise TypeError(f"'seed' must be an integer or a RNG, got {type(seed).__name__}")
         self.rng = self._get_rng(seed)
-
-        # TODO: ideally, delete the line below and replace all np.random.* calls with self.rng.*
-        # np.random.set_state(self.rng.bit_generator.state)
 
         # Validate hypothesis: Family or Pairwise
         if hypothesis is not None:
@@ -848,39 +863,60 @@ class functionalANOVA():
 
             self.hypothesis = hypothesis.upper()
 
-    def _validate_twoway_inputs(self, contrast, primary_labels, secondary_labels, weights):
+    def _validate_plotting_inputs(self, show_simul_plots=None, group_labels=None, primary_labels=None, secondary_labels=None):
+        if show_simul_plots is not None:
+            if not isinstance(show_simul_plots, bool):
+                raise TypeError(f"'show_simul_plots' must be True or False, got {type(show_simul_plots).__name__}")
+            self.show_simul_plots = show_simul_plots
+        else:
+            self.show_simul_plots = False # default
+
+        if group_labels is not None:
+            if not isinstance(group_labels, (list, tuple)):
+                raise TypeError(f"'group_labels' must be a list or tuple, got {type(group_labels).__name__}")
+            if not all(isinstance(label, str) for label in group_labels):
+                raise ValueError("All labels in 'group_labels' must be strings")
+            if not len(group_labels) == self._groups.k:
+                raise ValueError(f"length of 'group_labels' {len(group_labels)} must match number of groups {self._groups.k}")
+            self._labels.group = list(group_labels)
+            self._labels.generic_group = False
+
+        if primary_labels is not None:
+            if not isinstance(primary_labels, (list, tuple)):
+                raise TypeError(f"'primary_labels' must be a list or tuple, got {type(primary_labels).__name__}")
+            if not all (isinstance(label, str) for label in primary_labels):
+                raise ValueError("All labels in 'primary_labels' must be strings")
+
+        self.primary_labels = primary_labels
+
+        if secondary_labels is not None:
+            if not isinstance(secondary_labels, (list, tuple)):
+                raise TypeError(f"'secondary_labels' must be a list or tuple, got {type(secondary_labels).__name__}")
+            if not all (isinstance(label, str) for label in secondary_labels):
+                raise ValueError("All labels in 'secondary_labels' must be strings")
+
+        self.secondary_labels = secondary_labels
+
+    def _validate_twoway_inputs(self, contrast, weights):
         # arg 'subgroup_indicator' already validated by _setup_twoway()
         if contrast is not None:
             if not isinstance(contrast, np.ndarray):
-                raise ValueError(f"'contrast' must be a NumPy array, got {type(contrast)}")
+                raise TypeError(f"'contrast' must be a NumPy array, got {type(contrast).__name__}")
             if contrast.ndim not in [1,2]:
                 raise ValueError(f"'contrast' must be a 1D or 2D array, got {contrast.ndim}")
 
         self.contrast = contrast
 
-        if primary_labels is not None:
-            if not isinstance(primary_labels, (list, tuple)):
-                raise ValueError(f"'primary_labels' must be a list or tuple, got {type(primary_labels)}")
-            if not all (isinstance(label, str) for label in primary_labels):
-                raise ValueError(f"All labels in 'primary_labels' must be strings")
-
-        if secondary_labels is not None:
-            if not isinstance(secondary_labels, (list, tuple)):
-                raise ValueError(f"'secondary_labels' must be a list or tuple, got {type(secondary_labels)}")
-            if not all (isinstance(label, str) for label in secondary_labels):
-                raise ValueError(f"All labels in 'secondary_labels' must be strings")
-
-        self.primary_labels = primary_labels
-        self.secondary_labels = secondary_labels
-
         if weights is not None:
             if not isinstance(weights, str):
-                raise ValueError(f"'weights' must be a string, got {type(weights)}")
+                raise TypeError(f"'weights' must be a string, got {type(weights).__name__}")
             # weights type is currently checked twice, once in _validate_twoway_inputs() and once in run_twoway()
             if weights.upper() not in ["UNIFORM", "PROPORTIONAL"]:
                 raise ValueError(f"Unsupported weight type: {weights}, must either be 'UNIFORM' or 'PROPORTIONAL'")
 
             self.weights = weights.upper()
+        else:
+            self.weights = "PROPORTIONAL"
 
     def _validate_domain_response_labels(self, domain_units: None|str, domain_label: None|str , response_units: None|str , response_label: None|str ):
         for name, value in [

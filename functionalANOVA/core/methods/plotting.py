@@ -32,6 +32,7 @@ class PlotOptions:
         observation_size_label: bool=True,
         x_scale: str = "linear",
         y_scale: str = "linear",
+        color_scale: str = "linear",
         data_transparency: float = 0.1,
         legend_transparency: float = 0.3333,
         data_line_width: float = 1.75,
@@ -45,10 +46,11 @@ class PlotOptions:
         new_colors: Optional[np.ndarray] = None,
         position: Tuple[int, int, int, int] = (90, 90, 1400, 800),
     ):
-        
+
         self.observation_size_label = observation_size_label
         self.x_scale = x_scale
         self.y_scale = y_scale
+        self.color_scale = color_scale
         self.data_transparency = data_transparency
         self.legend_transparency = legend_transparency
         self.data_line_width = data_line_width
@@ -72,6 +74,10 @@ class PlotOptions:
             raise ValueError(f"x_scale must be one of {valid_scales}, got {self.x_scale!r}")
         if self.y_scale not in valid_scales:
             raise ValueError(f"y_scale must be one of {valid_scales}, got {self.y_scale!r}")
+
+        valid_color_scales = ("linear", "log")
+        if self.color_scale not in valid_color_scales:
+            raise ValueError(f"color_scale must be one of {valid_color_scales}, got {self.color_scale!r}")
 
         # alpha-like params
         if not (0.0 <= self.data_transparency <= 1.0):
@@ -99,10 +105,10 @@ class PlotOptions:
             if not os.path.isdir(normalized):
                 raise ValueError(f"save_path must be an existing directory, got {self.save_path!r}")
             self.save_path = normalized  # normalize
-            
+
     def update_from_dict(self, updates: dict) -> None:
         """
-        Update PlotOptions from a dictionary. 
+        Update PlotOptions from a dictionary.
         Only applies changes if value is not None and different.
         """
         for key, value in updates.items():
@@ -110,7 +116,6 @@ class PlotOptions:
                 if getattr(self, key) != value:
                     setattr(self, key, value)
         self._validate()
-
 
 # TODO: Cleaner than passing tons of args in. Need to verify twoway plotting
 def plot_means(self, plot_type):
@@ -374,7 +379,7 @@ def auto_make_labels(units, quanity_label):
         axis_label = f'{quanity_label}'
     else:
         axis_label = ''
-        
+
     if units is not None:
         if axis_label == '':
             axis_label = f'({units})'
@@ -382,12 +387,8 @@ def auto_make_labels(units, quanity_label):
             axis_label += ' ' + f'({units})'
 
     return axis_label
-       
 
-
-# TODO: Needs work
-def plot_covariances(self, plot_type='default', subgroup_indicator=None, group_labels=None, primary_labels=None, secondary_labels=None, x_scale='', y_scale='', color_scale='', domain_units_label='', response_units_label='', title_labels=None, save_path='', position=(90, 257, 2000, 800)):
-
+def plot_covariances(self, plot_type):
     def _make_covariances(data, k, domain_points):
         eta_i = np.zeros((domain_points, k))
         v_hat_i = [None] * k
@@ -438,19 +439,6 @@ def plot_covariances(self, plot_type='default', subgroup_indicator=None, group_l
             m = np.ceil(k / n)
         return m, n
 
-    if subgroup_indicator is not None:
-        self._groups.subgroup_indicator = subgroup_indicator
-    if group_labels is not None:
-        self._labels.group = group_labels
-    if primary_labels is not None:
-        self._labels.primary = primary_labels
-    if secondary_labels is not None:
-        self._labels.secondary = secondary_labels
-    if domain_units_label:
-        self._units.domain = domain_units_label
-    if response_units_label:
-        self._units.response = response_units_label
-
     plot_type = plot_type.upper()
     fig_label = 'Group'
     temp_label = ''
@@ -463,40 +451,40 @@ def plot_covariances(self, plot_type='default', subgroup_indicator=None, group_l
         else:
             display_label = self._labels.group
     else:
-        set_up_two_way(self)
+        self._setup_twoway()
 
         if plot_type in ['DEFAULT', 'PRIMARY']:
             plot_type = 'PRIMARY'
             fig_label = 'Primary Factor'
-            display_label = self.primary_labels
+            display_label = self._labels.primary
 
             if self._labels.generic_group:
                 display_label = [f"Group {label}" for label in display_label]
 
         elif plot_type == 'SECONDARY':
             fig_label = 'Secondary Factor'
-            display_label = self.secondary_labels
+            display_label = self._labels.secondary
 
             if self._labels.generic_group:
                 display_label = [f"Group {label}" for label in display_label]
 
         elif plot_type == 'INTERACTION':
             fig_label = 'Primary & Secondary Factor'
-            combinations = generate_two_way_comb(self)
+            combinations = utils.generate_two_way_comb(self)
             display_label = combinations
 
     if hasattr(self, 'echo_ensemble_recs') and self.echo_ensemble_recs is not None:
-        if title_labels:
-            title_labels_str = self.echo_ensemble_recs.make_summary_string(title_labels, True)
-            save_labels = self.echo_ensemble_recs.make_summary_string(title_labels, True, sanitize_string=True)
+        if self.plottingOptions.title_labels:
+            title_labels_str = self.echo_ensemble_recs.make_summary_string(self.plottingOptions.title_labels, True)
+            save_labels = self.echo_ensemble_recs.make_summary_string(self.plottingOptions.title_labels, True, sanitize_string=True)
         else:
             title_labels_str = ''
             save_labels = ''
 
     else:
-        if title_labels:
-            title_labels_str = str(title_labels)
-            save_labels = str(title_labels)
+        if self.plottingOptions.title_labels:
+            title_labels_str = str(self.plottingOptions.title_labels)
+            save_labels = str(self.plottingOptions.title_labels)
         else:
             title_labels_str = ''
             save_labels = ''
@@ -550,8 +538,8 @@ def plot_covariances(self, plot_type='default', subgroup_indicator=None, group_l
         gamma_hat_i, pooled_covar, n_ii = _make_covariances(sub_data, ab, self.n_domain_points)
         K = ab
 
-    fig_width = max(position[2] / 100, 8)  # minimum 8 inches
-    fig_height = max(position[3] / 100, 6)  # minimum 6 inches
+    fig_width = max(self.plottingOptions.position[2] / 100, 8)  # minimum 8 inches
+    fig_height = max(self.plottingOptions.position[3] / 100, 6)  # minimum 6 inches
 
     fig = plt.figure(figsize=(fig_width, fig_height))
     fig.canvas.manager.set_window_title(f'{fig_label} Covariances Visualized')
@@ -583,15 +571,15 @@ def plot_covariances(self, plot_type='default', subgroup_indicator=None, group_l
         ax.set_xlabel(temp_label)
         ax.set_ylabel(temp_label)
 
-        if not x_scale:
+        if not self.plottingOptions.x_scale:
             ax.set_xscale('linear')
         else:
-            ax.set_xscale(x_scale)
+            ax.set_xscale(self.plottingOptions.x_scale)
 
-        if not y_scale:
+        if not self.plottingOptions.y_scale:
             ax.set_yscale('linear')
         else:
-            ax.set_yscale(y_scale)
+            ax.set_yscale(self.plottingOptions.y_scale)
 
     ax = plt.subplot(rows, cols, K + 1)
     cmin = np.min(pooled_covar)
@@ -609,34 +597,30 @@ def plot_covariances(self, plot_type='default', subgroup_indicator=None, group_l
     plt.suptitle(f'{fig_label} Covariances {title_labels_str}', fontsize=10)
 
     for ax in fig.get_axes():
-        ax.tick_params(labelsize=18)
+        ax.tick_params(labelsize=self.plottingOptions.font_size)
         for text in ax.get_xticklabels() + ax.get_yticklabels():
-            text.set_fontsize(18)
+            text.set_fontsize(self.plottingOptions.font_size)
 
     plt.tight_layout()
 
-    if not x_scale:
+    if not self.plottingOptions.x_scale:
         plt.gca().set_xscale('linear')
     else:
-        plt.gca().set_xscale(x_scale)
+        plt.gca().set_xscale(self.plottingOptions.x_scale)
 
-    if not y_scale:
+    if not self.plottingOptions.y_scale:
         plt.gca().set_yscale('linear')
     else:
-        plt.gca().set_yscale(y_scale)
+        plt.gca().set_yscale(self.plottingOptions.y_scale)
 
-    if not color_scale:
-        pass
-
-    else:
+    if self.plottingOptions.color_scale == 'log':
         if hasattr(plt.gca(), 'set_norm'):
             from matplotlib.colors import LogNorm
-            if color_scale == 'log':
-                plt.gca().images[0].set_norm(LogNorm())
+            plt.gca().images[0].set_norm(LogNorm())
 
-    if save_path and os.path.isdir(save_path):
+    if self.plottingOptions.save_path and os.path.isdir(self.plottingOptions.save_path):
         save_filename = f"Covariance_{save_labels}.png"
-        fig.savefig(os.path.join(save_path, save_filename))
+        fig.savefig(os.path.join(self.plottingOptions.save_path, save_filename))
         plt.close(fig)
     else:
         plt.show(block=False)
@@ -646,7 +630,7 @@ def plot_covariances(self, plot_type='default', subgroup_indicator=None, group_l
 # TODO: Some option or ability to save these plots
 def plot_test_stats(self, p_value:float | np.floating, null_dist:np.ndarray, test_stat:float | np.floating,
                     test_name:str, scedasticity:str,  k:int, N:int|None = None):
-    
+
     p_value = float(p_value)
 
     if p_value <= self.alpha:
@@ -705,7 +689,7 @@ def plot_test_stats(self, p_value:float | np.floating, null_dist:np.ndarray, tes
     title_label = ''
     if 'f' in test_name.lower():
         assert N is not None and isinstance(N, int), "'N' must be provided for F-type mixture labeling"
-        
+
         null_dist_label = fr'Simulated $F_{{(k-1),(n-k)}} = F_{{({k - 1}),({N - k})}}$-type Mixture Null Distribution'
         if self.hypothesis == "FAMILY":
             title_label = f'One-Way({scedasticity}), Family, Functional ANOVA: F-type test'
