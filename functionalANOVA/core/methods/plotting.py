@@ -388,62 +388,69 @@ def auto_make_labels(units, quanity_label):
 
     return axis_label
 
+def _make_covariances(data, k, domain_points):
+    eta_i = np.zeros((domain_points, k))
+    v_hat_i = [None] * k
+
+    gamma_hat_i = np.zeros((domain_points, domain_points, k))
+    n_ii = np.zeros(k)
+
+    for kk in range(k):
+        n_i = data[kk].shape[1]
+        n_ii[kk] = n_i
+        eta_i[:, kk] = np.mean(data[kk], axis=1)
+        zero_mean_data_k_subset = data[kk] - eta_i[:, kk:kk+1]
+        v_hat_i[kk] = zero_mean_data_k_subset
+        gamma_hat_i[:, :, kk] = (1 / (n_i - 1)) * (zero_mean_data_k_subset @ zero_mean_data_k_subset.T)
+
+    N = int(np.sum(n_ii))
+    pooled_covar_terms = np.zeros((domain_points, domain_points, k))
+
+    for kk in range(k):
+        pooled_covar_terms[:, :, kk] = (n_ii[kk] - 1) * gamma_hat_i[:, :, kk]
+    pooled_covar = np.sum(pooled_covar_terms, axis=2) / (N - k)
+
+    return gamma_hat_i, pooled_covar, n_ii
+
+def _grid_generator(k):
+    if k <= 3:
+        n = k
+        m = 1
+    elif k == 4:
+        n = 2
+        m = 2
+    elif k == 5:
+        n = 2
+        m = 3
+    elif k == 6:
+        n = 2
+        m = 3
+    elif k == 7:
+        n = 3
+        m = 3
+    elif k == 8:
+        n = 3
+        m = 3
+    else:
+        # n = math.ceil(math.sqrt(k))
+        # m = math.ceil(k / n)
+        n = np.ceil(math.sqrt(k))
+        m = np.ceil(k / n)
+    return int(m), int(n)
+
 def plot_covariances(self, plot_type):
-    def _make_covariances(data, k, domain_points):
-        eta_i = np.zeros((domain_points, k))
-        v_hat_i = [None] * k
-
-        gamma_hat_i = np.zeros((domain_points, domain_points, k))
-        n_ii = np.zeros(k)
-
-        for kk in range(k):
-            n_i = data[kk].shape[1]
-            n_ii[kk] = n_i
-            eta_i[:, kk] = np.mean(data[kk], axis=1)
-            zero_mean_data_k_subset = data[kk] - eta_i[:, kk:kk+1]
-            v_hat_i[kk] = zero_mean_data_k_subset
-            gamma_hat_i[:, :, kk] = (1 / (n_i - 1)) * (zero_mean_data_k_subset @ zero_mean_data_k_subset.T)
-
-        N = int(np.sum(n_ii))
-        pooled_covar_terms = np.zeros((domain_points, domain_points, k))
-
-        for kk in range(k):
-            pooled_covar_terms[:, :, kk] = (n_ii[kk] - 1) * gamma_hat_i[:, :, kk]
-        pooled_covar = np.sum(pooled_covar_terms, axis=2) / (N - k)
-
-        return gamma_hat_i, pooled_covar, n_ii
-
-    def _grid_generator(k):
-        if k <= 3:
-            n = k
-            m = 1
-        elif k == 4:
-            n = 2
-            m = 2
-        elif k == 5:
-            n = 2
-            m = 3
-        elif k == 6:
-            n = 2
-            m = 3
-        elif k == 7:
-            n = 3
-            m = 3
-        elif k == 8:
-            n = 3
-            m = 3
-        else:
-            # n = math.ceil(math.sqrt(k))
-            # m = math.ceil(k / n)
-            n = np.ceil(math.sqrt(k))
-            m = np.ceil(k / n)
-        return m, n
-
+    # Default Vars
+    K = None
+    gamma_hat_i = None 
+    pooled_covar = None
+    display_label = []
+    n_ii = []
+    
     plot_type = plot_type.upper()
     fig_label = 'Group'
     temp_label = ''
 
-    if not self._groups.subgroup_indicator:
+    if self._groups.subgroup_indicator is None:
         assert plot_type == 'DEFAULT', 'TwoWay plotting options require a subgroup_indicator argument'
 
         if self._labels.generic_group:
@@ -473,26 +480,17 @@ def plot_covariances(self, plot_type):
             combinations = utils.generate_two_way_comb(self)
             display_label = combinations
 
-    if hasattr(self, 'echo_ensemble_recs') and self.echo_ensemble_recs is not None:
-        if self.plottingOptions.title_labels:
-            title_labels_str = self.echo_ensemble_recs.make_summary_string(self.plottingOptions.title_labels, True)
-            save_labels = self.echo_ensemble_recs.make_summary_string(self.plottingOptions.title_labels, True, sanitize_string=True)
-        else:
-            title_labels_str = ''
-            save_labels = ''
-
+    if self.plottingOptions.title_labels:
+        title_labels_str = str(self.plottingOptions.title_labels)
+        save_labels = str(self.plottingOptions.title_labels)
     else:
-        if self.plottingOptions.title_labels:
-            title_labels_str = str(self.plottingOptions.title_labels)
-            save_labels = str(self.plottingOptions.title_labels)
-        else:
-            title_labels_str = ''
-            save_labels = ''
+        title_labels_str = ''
+        save_labels = ''
 
     if not self._units.response:
-        color_bar_label = '(Response)^2'
+        color_bar_label = r'$(\mathrm{Response})^2$'
     else:
-        color_bar_label = f'({self._units.response})^2'
+        color_bar_label = rf'$({self._units.response})^{{2}}$'
 
     if plot_type in ['DEFAULT', 'PRIMARY']:
         gamma_hat_i, pooled_covar, n_ii = _make_covariances(self.data, self._groups.k, self.n_domain_points)
@@ -538,35 +536,40 @@ def plot_covariances(self, plot_type):
         gamma_hat_i, pooled_covar, n_ii = _make_covariances(sub_data, ab, self.n_domain_points)
         K = ab
 
+    assert K is not None, 'K is None and it should have been assigned'
+    assert gamma_hat_i is not None, 'covariance wasnt calculated and it should have been'
+    assert pooled_covar is not None, 'pooled covariance wasnt calculated and it should have been'
+
+    
     fig_width = max(self.plottingOptions.position[2] / 100, 8)  # minimum 8 inches
     fig_height = max(self.plottingOptions.position[3] / 100, 6)  # minimum 6 inches
 
     fig = plt.figure(figsize=(fig_width, fig_height))
-    fig.canvas.manager.set_window_title(f'{fig_label} Covariances Visualized')
+    mgr = fig.canvas.manager
+
+    if mgr is not None:
+        mgr.set_window_title(f'{fig_label} Covariances Visualized')  #ignore: type
 
     n_plots = K + 1
     rows, cols = _grid_generator(n_plots)
+
+    extent = (float(self.d_grid[0]),float(self.d_grid[-1]),float(self.d_grid[0]),float(self.d_grid[-1]),)
 
     for ii in range(K):
         ax = plt.subplot(rows, cols, ii + 1)
         cmin = np.min(gamma_hat_i[:, :, ii])
         cmax = np.max(gamma_hat_i[:, :, ii])
 
-        im = ax.imshow(gamma_hat_i[:, :, ii], extent=[self.d_grid[0], self.d_grid[-1], self.d_grid[0], self.d_grid[-1]],
+        im = ax.imshow(gamma_hat_i[:, :, ii], extent=extent,
                       origin='lower', aspect='equal', vmin=cmin, vmax=cmax)
         ax.set_title(f"{display_label[ii]} | n = {int(n_ii[ii])}")
-        plt.colorbar(im, ax=ax)
-
+        cbar = plt.colorbar(im, ax=ax)
+        cbar.set_label(color_bar_label)
+        
         ax.set_xticks(ax.get_yticks())
 
-        if hasattr(self, 'echo_ensemble_recs') and self.echo_ensemble_recs is not None:
-            if not self._units.domain:
-                temp_label = self._labels.domain or ''
-            else:
-                temp_label = f"{self._labels.domain or ''} ({self._units.domain})"
-        else:
-            if self._units.domain:
-                temp_label = f"({self._units.domain})"
+        if self._units.domain:
+            temp_label = f"({self._units.domain})"
 
         ax.set_xlabel(temp_label)
         ax.set_ylabel(temp_label)
@@ -585,14 +588,17 @@ def plot_covariances(self, plot_type):
     cmin = np.min(pooled_covar)
     cmax = np.max(pooled_covar)
 
-    im = ax.imshow(pooled_covar, extent=[self.d_grid[0], self.d_grid[-1], self.d_grid[0], self.d_grid[-1]],
+    im = ax.imshow(pooled_covar, extent=extent,
                   origin='lower', aspect='equal', vmin=cmin, vmax=cmax)
 
     ax.set_title(f"Pooled | n = {self.N}")
     ax.set_xlabel(temp_label)
     ax.set_ylabel(temp_label)
-    plt.colorbar(im, ax=ax)
     ax.set_xticks(ax.get_yticks())
+    
+    cbar = plt.colorbar(im, ax=ax)
+    cbar.set_label(color_bar_label)
+
 
     plt.suptitle(f'{fig_label} Covariances {title_labels_str}', fontsize=10)
 
