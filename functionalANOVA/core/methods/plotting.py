@@ -117,7 +117,6 @@ class PlotOptions:
                     setattr(self, key, value)
         self._validate()
 
-# TODO: Cleaner than passing tons of args in. Need to verify twoway plotting
 def plot_means(self, plot_type):
 
     plot_type = plot_type.upper()
@@ -370,7 +369,6 @@ def plot_means(self, plot_type):
         plt.show(block=False)
 
     return fig, ax
-
 
 def auto_make_labels(units, quanity_label):
     if quanity_label is not None:
