@@ -27,6 +27,6 @@ myANOVA.plot_covariances(plot_type='INTERACTION', subgroup_indicator=indicator_a
 
 myANOVA.plot_means(plot_type='Default', primary_labels=["One", "Two"])
 myANOVA.plot_means(plot_type='secondary', subgroup_indicator=indicator_list)
-myANOVA.plot_means(plot_type='INTERACTION', subgroup_indicator=indicator_array)
+myANOVA.plot_means(plot_type='INTERACTION', subgroup_indicator=indicator_array, secondary_labels=["Apples", "Peaches", "Oranges", "Pears"])
 
 print('test complete')
