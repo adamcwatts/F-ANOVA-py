@@ -8,7 +8,7 @@ from functionalANOVA.core import utils
 from functionalANOVA.core.methods.oneway import run_onewayBF
 
 # TODO: Check Pairwise hypothesis
-def run_twoway(self, method, data, contrast):
+def run_twoway(self, method, data, contrast, rng):
 
     N = self.N
     ddim = self.n_domain_points
@@ -23,13 +23,13 @@ def run_twoway(self, method, data, contrast):
 
     q = len(bflag0)
     k = (p * q)
-    
+
     Hp = 0
     Hq = 0
     Ap = 0
     Aq = 0
-    u = v = None  # makes them always "defined"   
-    
+    u = v = None  # makes them always "defined"
+
     gsize = []
     vmu = []
     V = []
@@ -43,7 +43,7 @@ def run_twoway(self, method, data, contrast):
             ni = np.sum(ijflag)
 
             if ni == 0:
-                error_string.append(f"A missing combination of data occurs for Primary Label {self._labes.primary[i]} and Secondary Label {self._labes.secondary[j]}")
+                error_string.append(f"A missing combination of data occurs for Primary Label {self._labels.primary[i]} and Secondary Label {self._labels.secondary[j]}")
 
             gsize.append(ni)
             yyi = yy[ijflag, :]
@@ -113,14 +113,14 @@ def run_twoway(self, method, data, contrast):
             r = q - 1
 
         case "CUSTOM" | _:
-            if self._groups.contrast_facto == 1:
+            if self._groups.contrast_factor == 1:
                 assert v is not None, "v must be defined before using reshape"
                 contrast = contrast @ np.kron(Ap, v.reshape(1, -1))
-            elif self._groups.contrast_facto == 2:
+            elif self._groups.contrast_factor == 2:
                 assert u is not None, "v must be defined before using reshape"
                 contrast = contrast @ np.kron(u.reshape(1, -1), Aq)
             else:
-                raise ValueError("Invalid contrast_facto: must be 1 or 2")
+                raise ValueError("Invalid contrast_factor: must be 1 or 2")
 
             r = contrast.shape[0]
 
@@ -140,7 +140,7 @@ def run_twoway(self, method, data, contrast):
 
     A = np.trace(Pooled_COVAR)
     B = np.trace(Pooled_COVAR @ Pooled_COVAR)
-    
+
     A2 = 0
     B2 = 0
 
@@ -153,17 +153,17 @@ def run_twoway(self, method, data, contrast):
         # just used pool_coef instead of N-k explicitly
         A2 = (pool_coeff) * (pool_coeff+1) / (pool_coeff-1) / (pool_coeff+2) * (A**2-2*B/(pool_coeff+1))
         B2 = (pool_coeff)**2 / (pool_coeff-1)/(pool_coeff+2) * (B-A**2/(pool_coeff))
-        
+
 
     pvalue = np.nan
     stat = np.nan
-    match method: 
+    match method:
         case "L2-Simul":
             stat = SSH0
             eig_gamma_hat = np.linalg.eigvalsh(Pooled_COVAR)
             eig_gamma_hat = eig_gamma_hat[eig_gamma_hat > 0]
 
-            SSH_null = utils.chi_sq_mixture(r, eig_gamma_hat, self.n_simul)
+            SSH_null = utils.chi_sq_mixture(r, eig_gamma_hat, self.n_simul, self.rng)
             SSH_NullFitted = stats.gaussian_kde(SSH_null)
             pvalue = 1 - SSH_NullFitted.integrate_box_1d(-np.inf, stat)
             pvalue = max(0,min(1,pvalue))
@@ -184,8 +184,8 @@ def run_twoway(self, method, data, contrast):
             eig_gamma_hat = np.linalg.eigvalsh(Pooled_COVAR)
             eig_gamma_hat = eig_gamma_hat[eig_gamma_hat > 0]
 
-            SSH_null = utils.chi_sq_mixture(r, eig_gamma_hat, self.n_simul)
-            SSE_null = utils.chi_sq_mixture(N-k, eig_gamma_hat, self.n_simul)
+            SSH_null = utils.chi_sq_mixture(r, eig_gamma_hat, self.n_simul, self.rng)
+            SSE_null = utils.chi_sq_mixture(N-k, eig_gamma_hat, self.n_simul, self.rng)
 
             ratio = (N-k) / r
 
@@ -207,7 +207,8 @@ def run_twoway(self, method, data, contrast):
                             ijflag = (aflag==aflag0[i]) & (bflag == bflag0[j])
                             ni = n_ii[counter]
                             yi = yy[ijflag,:]
-                            Bootflag = np.random.choice(ni,ni,replace=True)
+                            # Bootflag = np.random.choice(ni,ni,replace=True)
+                            Bootflag = rng.choice(ni,ni,replace=True)
 
                             Byi = yi[Bootflag,:]
                             Bmui = np.mean(Byi, axis=0)
@@ -241,7 +242,8 @@ def run_twoway(self, method, data, contrast):
                         ni = n_ii[counter]
 
                         yi = yy[ijflag, :]
-                        Bootflag = np.random.randint(0, ni, size=ni)
+                        # Bootflag = np.random.randint(0, ni, size=ni)
+                        Bootflag = rng.integers(0, ni, size=ni)
                         Byi = yi[Bootflag, :]
                         Bmui = np.mean(Byi, axis=0)
                         Bmu[counter] = Bmui
@@ -275,7 +277,7 @@ def run_twowayBF(self, method, data, contrast, c):
 
     bflag0 = np.unique(bflag)
     q = len(bflag0)
-    u = v = None  # makes them always "defined"   
+    u = v = None  # makes them always "defined"
 
     gsize = np.zeros((p,q))
     yy = []
@@ -313,7 +315,7 @@ def run_twowayBF(self, method, data, contrast, c):
     else:
         raise ValueError(f"Unsupported weight type: {self.weights}, must either be 'UNIFORM' or 'PROPORTIONAL'")
 
-    
+
     Ap = np.eye(p) - np.outer(np.ones(p), u)
     Aq = np.eye(q) - np.outer(np.ones(q), v)
 
@@ -344,6 +346,6 @@ def run_twowayBF(self, method, data, contrast, c):
     pure_data = yy[:,1:]
     A = yy[:,0]
 
-    pvalue, stat = run_onewayBF(self, method, pure_data, contrast_final, c, indicator_a=A)
+    pvalue, stat = run_onewayBF(self, method, pure_data, contrast_final, c, self.rng, indicator_a=A)
 
     return pvalue, stat

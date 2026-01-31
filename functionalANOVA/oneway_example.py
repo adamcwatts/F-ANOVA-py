@@ -31,8 +31,6 @@ myANOVA = functionalANOVA(data_list=group_arrays, d_grid=time, grid_bounds=bound
                           domain_label='Time', domain_units='Seconds',
                           response_label='Temperature', response_units='Celcius')
 
-myANOVA.show_simul_plots = False
-
 myANOVA.oneway(hypothesis='family')
 myANOVA.oneway(hypothesis='pairwise')
 
