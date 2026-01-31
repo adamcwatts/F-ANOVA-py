@@ -123,22 +123,22 @@ def plot_means(self, plot_type):
     plot_type = plot_type.upper()
     n_labels = []
     the_labels  = []
-
+    fig_label = 'Group'
 
     if self._groups.subgroup_indicator is None:
         the_labels = self._labels.group
         n_labels = self.n_i
     else:
-        self._setup_twoway()
-
         if plot_type in ['DEFAULT', 'PRIMARY']:
             plot_type = 'PRIMARY'
             the_labels = self._labels.primary
             n_labels = self.n_i
+            fig_label = 'Primary Factor'
 
         elif plot_type == "SECONDARY":
             the_labels = self._labels.secondary
             n_labels = np.zeros(self._groups.B)
+            fig_label = 'Secondary Factor'
             for k in range(self._groups.A):
                 for kk in range(self._groups.B):
                     n_labels[kk] += self.n_ii[k][kk]
@@ -146,6 +146,7 @@ def plot_means(self, plot_type):
         elif plot_type == "INTERACTION":
             the_labels = utils.generate_two_way_comb(self)
             n_labels = np.concatenate([item for item in self.n_ii])
+            fig_label = 'Primary & Secondary Factors'
 
     if self.plottingOptions.observation_size_label:
         if self._labels.generic_group:
@@ -168,6 +169,11 @@ def plot_means(self, plot_type):
     fig_height = max(self.plottingOptions.position[3] / 100, 6)
 
     fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+    
+    mgr = fig.canvas.manager
+
+    if mgr is not None:
+        mgr.set_window_title(f'{fig_label} Means Visualized') 
 
     match plot_type:
         case 'DEFAULT':
@@ -466,7 +472,7 @@ def plot_covariances(self, plot_type):
                 display_label = [f"Group {label}" for label in display_label]
 
         elif plot_type == 'INTERACTION':
-            fig_label = 'Primary & Secondary Factor'
+            fig_label = 'Primary & Secondary Factors'
             combinations = utils.generate_two_way_comb(self)
             display_label = combinations
 
@@ -538,7 +544,7 @@ def plot_covariances(self, plot_type):
     mgr = fig.canvas.manager
 
     if mgr is not None:
-        mgr.set_window_title(f'{fig_label} Covariances Visualized')  #ignore: type
+        mgr.set_window_title(f'{fig_label} Covariances Visualized')
 
     n_plots = K + 1
     rows, cols = _grid_generator(n_plots)
