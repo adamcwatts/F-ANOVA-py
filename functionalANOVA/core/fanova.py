@@ -217,6 +217,7 @@ class functionalANOVA():
             self._setup_twoway()  # Creates Indicator Matrices and default Labels
             self._n_ii_generator()  # Creates Secondary Size Array
         
+        self._verifyLabels(group_labels, primary_labels, secondary_labels) # Requires subgroup_indicator check first 
         self._validate_domain_response_labels(domain_units, domain_label, response_units, response_label)
 
 
@@ -275,6 +276,8 @@ class functionalANOVA():
             self._validate_subgroup_indicator(subgroup_indicator, assign=True) # Verify First
             self._setup_twoway()  # Creates Indicator Matrices and default Labels
             self._n_ii_generator()  # Creates Secondary Size Array
+
+        self._verifyLabels(group_labels, primary_labels, secondary_labels) # Requires subgroup_indicator check first 
 
         # return plotting.plot_covariances(self, plot_type, subgroup_indicator, group_labels, primary_labels, secondary_labels, x_scale, y_scale, color_scale, domain_units_label, response_units_label, title_labels, save_path, position)
         self._validate_domain_response_labels(domain_units, domain_label, response_units, response_label)
@@ -927,7 +930,10 @@ class functionalANOVA():
         # ---- only reached if no errors occurred ----
         if assign:
             self._groups.subgroup_indicator = subgroup_indicator
-            self._labels.group = None # Force to None 
+            
+            if self._labels.group is not None: # transition from One-Way to Two-Way Analyses via subgroup
+                self._labels.primary = self._labels.group   # Move group now to primary
+                self._labels.group = None # Force to None 
 
     def _validate_plotting_inputs(self, show_simul_plots=None, group_labels=None, primary_labels=None, secondary_labels=None):
         if show_simul_plots is not None:
@@ -1049,7 +1055,42 @@ class functionalANOVA():
 
         self._groups.subgroup_indicator = flat
 
+    @staticmethod
+    def _check_label(labels: Optional[List[str]], name: str, expected: int) -> None:
+        if labels is None:
+            return
 
+        if not isinstance(labels, list) or not all(isinstance(x, str) for x in labels):
+            raise TypeError(f"{name} must be a list[str] or None")
+
+        if len(labels) != expected:
+            raise ValueError(f"{name} length ({len(labels)}) must match {expected}.")
+
+
+    def _verifyLabels(
+        self,
+        group_labels: Optional[List[str]] = None,
+        primary_labels: Optional[List[str]] = None,
+        secondary_labels: Optional[List[str]] = None,
+    ) -> None:
+
+        if self._groups.subgroup_indicator is None:  # OneWay
+            self._check_label(group_labels, "group_labels", self._groups.k)
+            if group_labels is not None:
+                self._labels.group = group_labels
+                self._labels.generic_group = False
+
+        else:  # TwoWay
+            self._check_label(primary_labels, "primary_labels", self._groups.A)
+            if primary_labels is not None:
+                self._labels.primary = primary_labels
+                self._labels.generic_group = False
+
+            self._check_label(secondary_labels, "secondary_labels", self._groups.B)
+            if secondary_labels is not None:
+                self._labels.secondary = secondary_labels
+                self._labels.generic_group = False
+        
     def _setup_oneway(self, H0, SSE_t, gamma_hat):
         import numpy as np
 

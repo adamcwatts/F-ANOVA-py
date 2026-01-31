@@ -21,11 +21,11 @@ bounds = (-np.inf, np.inf)
 myANOVA = functionalANOVA(data_list=groups, d_grid=time, grid_bounds=bounds)
 
 ## TwoWay Homoscedastic
-myANOVA.plot_covariances(plot_type='Default')
+myANOVA.plot_covariances(plot_type='Default', group_labels=["One", "Two"])
 myANOVA.plot_covariances(plot_type='secondary', subgroup_indicator=indicator_list)
 myANOVA.plot_covariances(plot_type='INTERACTION', subgroup_indicator=indicator_array)
 
-myANOVA.plot_means(plot_type='Default')
+myANOVA.plot_means(plot_type='Default', primary_labels=["One", "Two"])
 myANOVA.plot_means(plot_type='secondary', subgroup_indicator=indicator_list)
 myANOVA.plot_means(plot_type='INTERACTION', subgroup_indicator=indicator_array)
 

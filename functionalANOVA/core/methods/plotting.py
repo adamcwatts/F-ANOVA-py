@@ -1,14 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
 import os
 import math
 from functionalANOVA.core import utils
 from typing import Union, Optional, Any, Tuple
-from matplotlib.colors import Colormap, ListedColormap
-from dataclasses import dataclass
 
 
 class PlotOptions:
