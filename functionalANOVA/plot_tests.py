@@ -24,7 +24,9 @@ myANOVA = functionalANOVA(data_list=groups, d_grid=time, grid_bounds=bounds)
 myANOVA.plot_covariances(plot_type='Default')
 myANOVA.plot_covariances(plot_type='secondary', subgroup_indicator=indicator_list)
 myANOVA.plot_covariances(plot_type='INTERACTION', subgroup_indicator=indicator_array)
-print('test')
 
+myANOVA.plot_means(plot_type='Default')
+myANOVA.plot_means(plot_type='secondary', subgroup_indicator=indicator_list)
+myANOVA.plot_means(plot_type='INTERACTION', subgroup_indicator=indicator_array)
 
-
+print('test complete')

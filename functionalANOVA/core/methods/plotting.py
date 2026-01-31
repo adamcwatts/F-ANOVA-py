@@ -174,10 +174,8 @@ def plot_means(self, plot_type):
             mean_groups = [np.mean(data, axis=1) for data in self.data]
 
             if self.plottingOptions.new_colors is None:
-                if self._groups.k < 7:
-                    color_list = plt.cm.tab10(np.linspace(0, 1, self._groups.k))
-                else:
-                    color_list = plt.cm.turbo(np.linspace(0, 1, self._groups.k))
+                cmap = plt.get_cmap("tab10" if self._groups.k < 7 else "turbo")
+                color_list = cmap(np.linspace(0, 1, self._groups.k))
             else:
                 assert self.plottingOptions.new_colors.shape[1] == 4, 'Color order matrix must have 4 columns representing RGB values from 0 to 1 with the last column being alpha the transparency'
                 assert self.plottingOptions.new_colors.shape[0] >= self._groups.k, f'Color order matrix must have at least {self._groups.k} rows representing all the groups'
@@ -210,10 +208,8 @@ def plot_means(self, plot_type):
             mean_groups = [np.mean(data, axis=1) for data in self.data]
 
             if self.plottingOptions.new_colors is None:
-                if self._groups.k < 7:
-                    color_list = plt.cm.tab10(np.linspace(0, 1, self._groups.k))
-                else:
-                    color_list = plt.cm.turbo(np.linspace(0, 1, self._groups.k))
+                cmap = plt.get_cmap("tab10" if self._groups.k < 7 else "turbo")
+                color_list = cmap(np.linspace(0, 1, self._groups.k))
             else:
                 color_list = self.plottingOptions.new_colors
 
@@ -249,10 +245,8 @@ def plot_means(self, plot_type):
             n_secondary = len(bflag0)
 
             if self.plottingOptions.new_colors is None:
-                if n_secondary < 7:
-                    color_list = plt.cm.tab10(np.linspace(0, 1, n_secondary))
-                else:
-                    color_list = plt.cm.turbo(np.linspace(0, 1, n_secondary))
+                cmap = plt.get_cmap("tab10" if n_secondary < 7 else "turbo")
+                color_list = cmap(np.linspace(0, 1,n_secondary))
             else:
                 color_list = self.plottingOptions.new_colors
 
@@ -309,10 +303,8 @@ def plot_means(self, plot_type):
                 data_labels = [f"{comb}: Data" for comb in combinations]
 
             if self.plottingOptions.new_colors is None:
-                if ab < 7:
-                    color_list = plt.cm.tab10(np.linspace(0, 1, ab))
-                else:
-                    color_list = plt.cm.turbo(np.linspace(0, 1, ab))
+                cmap = plt.get_cmap("tab10" if ab < 7 else "turbo")
+                color_list = cmap(np.linspace(0, 1, ab))
             else:
                 color_list = self.plottingOptions.new_colors
 
