@@ -150,7 +150,7 @@ class functionalANOVA():
         # Validate All Inputs
         self._validate_domain_response_labels(domain_units, domain_label,  response_units, response_label)
         self._validate_instantiation_inputs()
-
+        
         self._groups.k = len(data_list)
         self.n_i = tuple(x.shape[1] for x in data_list)
         self.n_ii = None
@@ -173,6 +173,7 @@ class functionalANOVA():
         for k in range(self._groups.k):
             self.data.append(data_list[k][self.lb_index : self.ub_index + 1, :]) # exclusive at the upper bound
 
+        self._validate_subgroup_indicator(subgroup_indicator)
         if self._groups.subgroup_indicator is None: # One Way ANOVA set up
             if  self._labels.group:
                 assert len(self._labels.group) == self._groups.k, "Each Group Must Have Exactly One Label Associated to it"
@@ -210,7 +211,12 @@ class functionalANOVA():
                    legend_title: str = '',
                    new_colors: Optional[np.ndarray] = None,
                    position: Tuple[int, int, int, int] = (90, 90, 1400, 800)) -> Tuple[Any, Any]:
-
+        
+        if subgroup_indicator is not None:
+            self._validate_subgroup_indicator(subgroup_indicator, assign=True) # Verify First
+            self._setup_twoway()  # Creates Indicator Matrices and default Labels
+            self._n_ii_generator()  # Creates Secondary Size Array
+        
         self._validate_domain_response_labels(domain_units, domain_label, response_units, response_label)
 
 
@@ -264,6 +270,11 @@ class functionalANOVA():
                         title_labels: Optional[Any] = None,
                         save_path: str = '',
                         position: Tuple[int, int, int, int] = (90, 257, 2000, 800)) -> Any:
+
+        if subgroup_indicator is not None:
+            self._validate_subgroup_indicator(subgroup_indicator, assign=True) # Verify First
+            self._setup_twoway()  # Creates Indicator Matrices and default Labels
+            self._n_ii_generator()  # Creates Secondary Size Array
 
         # return plotting.plot_covariances(self, plot_type, subgroup_indicator, group_labels, primary_labels, secondary_labels, x_scale, y_scale, color_scale, domain_units_label, response_units_label, title_labels, save_path, position)
         self._validate_domain_response_labels(domain_units, domain_label, response_units, response_label)
@@ -862,6 +873,61 @@ class functionalANOVA():
                 raise ValueError(f"Unknown Method. Call stack above was: {f.f_code.co_name}")
 
             self.hypothesis = hypothesis.upper()
+            
+    def _validate_subgroup_indicator(
+        self,
+        subgroup_indicator: Optional[Union[np.ndarray, List[np.ndarray]]] = None,
+        *,
+        assign: bool = False,
+    ) -> None:
+        if subgroup_indicator is None:
+            return
+
+        # ---- single array case: expects overall N ----
+        if isinstance(subgroup_indicator, np.ndarray):
+            if subgroup_indicator.shape not in ((self.N,), (self.N, 1)):
+                raise ValueError(
+                    f"subgroup_indicator has shape {subgroup_indicator.shape}; "
+                    f"expected {(self.N,)} or {(self.N, 1)} (N={self.N})."
+                )
+
+        # ---- list case: expects one per group, matching n_i 1-for-1 ----
+        elif isinstance(subgroup_indicator, list):
+            if not subgroup_indicator:
+                raise ValueError("subgroup_indicator list must not be empty")
+
+            if not all(isinstance(x, np.ndarray) for x in subgroup_indicator):
+                raise TypeError("subgroup_indicator must be a np.ndarray or a list of np.ndarray")
+
+            k = self.groups.k
+            if len(subgroup_indicator) != k:
+                raise ValueError(
+                    f"subgroup_indicator list length ({len(subgroup_indicator)}) "
+                    f"must match the number of groups (k={k})."
+                )
+
+            if len(self.n_i) != k:
+                raise ValueError(f"n_i length ({len(self.n_i)}) must match k={k}.")
+
+            bad = [
+                i for i, (x, n) in enumerate(zip(subgroup_indicator, self.n_i))
+                if x.shape not in ((n,), (n, 1))
+            ]
+            if bad:
+                i = bad[0]
+                n = self.n_i[i]
+                raise ValueError(
+                    f"subgroup_indicator[{i}] has shape {subgroup_indicator[i].shape}; "
+                    f"expected {(n,)} or {(n, 1)} to match n_i[{i}]={n}."
+                )
+
+        else:
+            raise TypeError("subgroup_indicator must be a np.ndarray or a list of np.ndarray")
+
+        # ---- only reached if no errors occurred ----
+        if assign:
+            self._groups.subgroup_indicator = subgroup_indicator
+            self._labels.group = None # Force to None 
 
     def _validate_plotting_inputs(self, show_simul_plots=None, group_labels=None, primary_labels=None, secondary_labels=None):
         if show_simul_plots is not None:
@@ -964,32 +1030,25 @@ class functionalANOVA():
         self.lb_index = global_min_idx
         self.ub_index = global_max_idx
 
-    def _verifyIndicator(self):
-        """
-        Validates and standardizes subgroup_indicator.
-        Accepts either:
-        - A list of 1D NumPy arrays (like a cell array in MATLAB)
-        - A single 1D or 2D NumPy array
-        Ensures final result is a 1D NumPy array of length N.
-        """
+    def _verifyIndicator(self) -> None:
+        si = self._groups.subgroup_indicator
+        if si is None:
+            raise TypeError("subgroup_indicator is None; expected it to be assigned before _verifyIndicator")
 
-        # Flatten (from list or array) then reshape once
-        if isinstance(self._groups.subgroup_indicator, list):
-            assert len(self._groups.subgroup_indicator) == self._groups.k, (
-                f"Expected {self._groups.k} subgroups, got {len(self._groups.subgroup_indicator)}"
-            )
-            flat = np.concatenate(self._groups.subgroup_indicator, axis=0)
-        elif isinstance(self._groups.subgroup_indicator, np.ndarray):
-            flat = self._groups.subgroup_indicator
+        if isinstance(si, list):
+            flat = np.concatenate(si, axis=0)
+        elif isinstance(si, np.ndarray):
+            flat = si
         else:
-            raise TypeError("subgroup_indicator must be a list of np.ndarrays or a np.ndarray")
+            raise TypeError("subgroup_indicator must be a list of np.ndarray or a np.ndarray")
 
-        # Enforce 1D shape
-        self._groups.subgroup_indicator = self._cast_to_1D(flat)
+        flat = self._cast_to_1D(flat)
 
-        # Final check
-        N_subgroup = self._groups.subgroup_indicator.size
-        assert N_subgroup == self.N, (f"subgroup_indicator has {N_subgroup} elements, expected {self.N}")
+        if flat.shape != (self.N,):
+            raise ValueError(f"subgroup_indicator has shape {flat.shape}, expected {(self.N,)}")
+
+        self._groups.subgroup_indicator = flat
+
 
     def _setup_oneway(self, H0, SSE_t, gamma_hat):
         import numpy as np
@@ -1076,8 +1135,6 @@ class functionalANOVA():
         return AnovaStatistics(T_n, F_n, beta_hat, kappa_hat, beta_hat_unbias,kappa_hat_unbias)
 
     def _setup_twoway(self):
-
-
         self._verifyIndicator()
 
         subgroup = cast(np.ndarray, self._groups.subgroup_indicator)  #  it's only for static type checking.
@@ -1102,7 +1159,7 @@ class functionalANOVA():
 
         assert len(self._labels.secondary) == self._groups.B, "Labels for each Secondary factor level must have a one-to-one correspondence to each level"
 
-        if self.labels.group:
+        if self._labels.group:
             raise ValueError('TwoWay ANOVA requires using "primary_labels" and "secondary_labels" as input arguments.\nIt doesnt support the "group_labels" argument due to ambiguity.')
 
     def _setup_twoway_h0(self):

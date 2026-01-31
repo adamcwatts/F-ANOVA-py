@@ -458,8 +458,6 @@ def plot_covariances(self, plot_type):
         else:
             display_label = self._labels.group
     else:
-        self._setup_twoway()
-
         if plot_type in ['DEFAULT', 'PRIMARY']:
             plot_type = 'PRIMARY'
             fig_label = 'Primary Factor'
