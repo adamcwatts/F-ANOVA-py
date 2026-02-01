@@ -150,7 +150,7 @@ class functionalANOVA():
         # Validate All Inputs
         self._validate_domain_response_labels(domain_units, domain_label,  response_units, response_label)
         self._validate_instantiation_inputs()
-        
+
         self._groups.k = len(data_list)
         self.n_i = tuple(x.shape[1] for x in data_list)
         self.n_ii = None
@@ -211,13 +211,13 @@ class functionalANOVA():
                    legend_title: str = '',
                    new_colors: Optional[np.ndarray] = None,
                    position: Tuple[int, int, int, int] = (90, 90, 1400, 800)) -> Tuple[Any, Any]:
-        
+
         if subgroup_indicator is not None:
             self._validate_subgroup_indicator(subgroup_indicator, assign=True) # Verify First
             self._setup_twoway()  # Creates Indicator Matrices and default Labels
             self._n_ii_generator()  # Creates Secondary Size Array
-        
-        self._verifyLabels(group_labels, primary_labels, secondary_labels) # Requires subgroup_indicator check first 
+
+        self._verifyLabels(group_labels, primary_labels, secondary_labels) # Requires subgroup_indicator check first
         self._validate_domain_response_labels(domain_units, domain_label, response_units, response_label)
 
 
@@ -277,7 +277,7 @@ class functionalANOVA():
             self._setup_twoway()  # Creates Indicator Matrices and default Labels
             self._n_ii_generator()  # Creates Secondary Size Array
 
-        self._verifyLabels(group_labels, primary_labels, secondary_labels) # Requires subgroup_indicator check first 
+        self._verifyLabels(group_labels, primary_labels, secondary_labels) # Requires subgroup_indicator check first
 
         # return plotting.plot_covariances(self, plot_type, subgroup_indicator, group_labels, primary_labels, secondary_labels, x_scale, y_scale, color_scale, domain_units_label, response_units_label, title_labels, save_path, position)
         self._validate_domain_response_labels(domain_units, domain_label, response_units, response_label)
@@ -649,7 +649,7 @@ class functionalANOVA():
                             # Combine into full results table
                             self._tables.twoway = pd.concat([T_hypothesis, T_p_value], axis=1)
 
-                        case "FAMILY" | "PRIMARY" | "SECONDARY" | "INTERACTION":
+                        case "FAMILY" | "PRIMARY" | "SECONDARY" | "INTERACTION" | "CUSTOM":
                             if not isinstance(self._tables.twoway, pd.DataFrame):
                                 raise ValueError('two_way should be a pandas dataframe')
 
@@ -673,7 +673,7 @@ class functionalANOVA():
                             # Combine into full results table
                             self._tables.twoway_bf = pd.concat([T_hypothesis, T_p_value], axis=1)
 
-                        case "FAMILY" | "PRIMARY" | "SECONDARY" | "INTERACTION":
+                        case "FAMILY" | "PRIMARY" | "SECONDARY" | "INTERACTION" | "CUSTOM":
                             if not isinstance(self._tables.twoway_bf, pd.DataFrame):
                                 raise ValueError('two_way should be a pandas dataframe')
 
@@ -876,7 +876,7 @@ class functionalANOVA():
                 raise ValueError(f"Unknown Method. Call stack above was: {f.f_code.co_name}")
 
             self.hypothesis = hypothesis.upper()
-            
+
     def _validate_subgroup_indicator(
         self,
         subgroup_indicator: Optional[Union[np.ndarray, List[np.ndarray]]] = None,
@@ -930,10 +930,10 @@ class functionalANOVA():
         # ---- only reached if no errors occurred ----
         if assign:
             self._groups.subgroup_indicator = subgroup_indicator
-            
+
             if self._labels.group is not None: # transition from One-Way to Two-Way Analyses via subgroup
                 self._labels.primary = self._labels.group   # Move group now to primary
-                self._labels.group = None # Force to None 
+                self._labels.group = None # Force to None
 
     def _validate_plotting_inputs(self, show_simul_plots=None, group_labels=None, primary_labels=None, secondary_labels=None):
         if show_simul_plots is not None:
@@ -1090,7 +1090,7 @@ class functionalANOVA():
             if secondary_labels is not None:
                 self._labels.secondary = secondary_labels
                 self._labels.generic_group = False
-        
+
     def _setup_oneway(self, H0, SSE_t, gamma_hat):
         import numpy as np
 
@@ -1374,6 +1374,8 @@ class functionalANOVA():
                         desc = f'Calculating, Secondary Effect, Bootstrap L2 test'
                     case "INTERACTION":
                         desc = f'Calculating, Interaction Effect, Bootstrap L2 test'
+                    case "CUSTOM":
+                        desc = f'Calculating, Custom Contrast, Bootstrap L2 test'
                     case _:
                         raise ValueError(f'Unsupported Hypothesis: {self.hypothesis}')
             case "F-Bootstrap":
@@ -1388,6 +1390,8 @@ class functionalANOVA():
                         desc = f'Calculating, Secondary Effect, Bootstrap F-type test'
                     case "INTERACTION":
                         desc = f'Calculating, Interaction Effect, Bootstrap F-type test'
+                    case "CUSTOM":
+                        desc = f'Calculating, Custom Contrast, Bootstrap F-type test'
                     case _:
                         raise ValueError(f'Unsupported Hypothesis: {self.hypothesis}')
             case _:
