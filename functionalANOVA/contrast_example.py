@@ -18,7 +18,9 @@ indicator_list = [matlab_data['IndicatorCell'][0,0], matlab_data['IndicatorCell'
 # # Bounds on time
 bounds = (-np.inf, np.inf)
 
-myANOVA = functionalANOVA(data_list=groups, d_grid=time, grid_bounds=bounds, subgroup_indicator=indicator_list)
+myANOVA = functionalANOVA(data_list=groups, d_grid=time, grid_bounds=bounds, subgroup_indicator=indicator_list,
+                          primary_labels=["Bladder", "Bottle"],
+                          secondary_labels=["Pants", "Shorts", "Skirt", "Dress"])
 
 myANOVA.twoway(hypothesis="custom", methods = ["L2-Simul", 'F-Simul'],  contrast = [-1, 1])
 
