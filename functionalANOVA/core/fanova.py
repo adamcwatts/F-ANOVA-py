@@ -63,7 +63,7 @@ class ANOVAGroups:
 
     subgroup_indicator: Union[np.ndarray, List[np.ndarray], None] = None # indicator Array for B
 
-    contrast: Optional[np.ndarray] = None # User Specified Constrast vector
+    contrast: Optional[Union[np.ndarray, List[int], None]] = None # User Specified Constrast vector
     contrast_factor:  Optional[int] = None # Either 1 for Primary, 2 for Secondary
 
 @dataclass
@@ -472,7 +472,7 @@ class functionalANOVA():
         methods: Optional[Sequence[str]] = None,
         hypothesis: Optional[Sequence[str]] = None,
         subgroup_indicator: Union[np.ndarray, List[np.ndarray], None] = None,
-        contrast: Optional[np.ndarray] = None,
+        contrast: Optional[Union[np.ndarray, List[int], None]] = None,
         primary_labels: Optional[Sequence[str]] = None,
         secondary_labels: Optional[Sequence[str]] = None,
         weights: Optional[Literal["proportional", "uniform"]] = None
@@ -970,14 +970,53 @@ class functionalANOVA():
         self.secondary_labels = secondary_labels
 
     def _validate_twoway_inputs(self, contrast, weights):
-        # arg 'subgroup_indicator' already validated by _setup_twoway()
+        # Check contrast variable
         if contrast is not None:
-            if not isinstance(contrast, np.ndarray):
-                raise TypeError(f"'contrast' must be a NumPy array, got {type(contrast).__name__}")
-            if contrast.ndim not in [1,2]:
-                raise ValueError(f"'contrast' must be a 1D or 2D array, got {contrast.ndim}")
+            if isinstance(contrast, list):
+                all_are_int = all(isinstance(x, int) for x in contrast)
+                if not all_are_int:
+                    raise TypeError(f"All element of the list must be python integer types")
+            elif isinstance(contrast, np.ndarray):
+                all_are_int = np.issubdtype(contrast.dtype, np.integer)
+                if not all_are_int:
+                    raise TypeError(f"All element of the NumPy array must be integer types")
+                if contrast.ndim not in [1,2]:
+                    raise ValueError(f"'contrast' must be a 1D or 2D array, got {contrast.ndim}")
+            else:
+                raise TypeError(f"'contrast' must be a NumPy array or list of integers, got {type(contrast).__name__}")
 
-        self.contrast = contrast
+            # if self._groups.A == self._groups.B:
+            #     if len(contrast) != self._groups.A:
+            #         raise ValueError(f'Size of Contrast Vector={len(contrast)} doesnt match the number of levels in either the Primary or Secondary Factors, n={self._groups.A}.')
+            
+            #     indx, tf = self.select_factor()
+                
+            #     if tf:
+            #         match indx:
+            #             case 1:
+            #                 print('Contrast Vector Applied to Primary Factor')
+            #                 self._groups.contrast_factor= 1
+            #             case 2:
+            #                 print('Contrast Vector Applied to Secondary Factor')
+            #                 self._groups.contrast_factor = 2
+            #     else:
+            #         raise ValueError('No Selection Made')
+                        
+            
+            # else:  # Different sizes Check size of contrast
+            #     if len(contrast) == self._groups.A:
+            #         print('Contrast Vector Applied to Primary Factor')
+            #         self._groups.contrast_factor = 1
+            #     elif len(contrast) == self._groups.B:
+            #         print('Contrast Vector Applied to Secondary Factor')
+            #         self._groups.contrast_factor = 2
+            #     else:
+            #         raise ValueError(f'Size of Contrast Vector={len(contrast)} doesnt match the number of levels in either the Primary={self._groups.A} or Secondary={self._groups.B} Factors.')
+            self._groups.contrast = contrast
+        elif contrast is not None:
+            warnings.warn('Ignoring Contrast Vector. Contrast Vector only used when hypothesis="CUSTOM"')
+
+        
 
         if weights is not None:
             if not isinstance(weights, str):
@@ -989,6 +1028,25 @@ class functionalANOVA():
             self.weights = weights.upper()
         else:
             self.weights = "PROPORTIONAL"
+            
+    @staticmethod
+    def select_factor():
+        options = ["Primary", "Secondary"]
+
+        while True:
+            print("\nSelect a Factor:")
+            for i, option in enumerate(options, 1):
+                print(f"{i}. {option}")
+
+            choice = input("Enter number (or press Enter to cancel): ").strip()
+
+            if choice == "":
+                return None, False
+
+            if choice.isdigit() and 1 <= int(choice) <= len(options):
+                return options[int(choice) - 1], True
+
+            print("Invalid selection. Try again.")
 
     def _validate_domain_response_labels(self, domain_units: None|str, domain_label: None|str , response_units: None|str , response_label: None|str ):
         for name, value in [
@@ -1236,14 +1294,10 @@ class functionalANOVA():
 
                 factor_choice = factor_choice.strip().lower()
                 if factor_choice == "primary":
-                    assert contrast_len == self._groups.A, \
-                        f"Contrast Vector length={contrast_len} does not match Primary factor levels={self._groups.A}"
                     print("Contrast Vector applied to Primary Factor")
                     self._groups.contrast_factor = 1
 
                 elif factor_choice == "secondary":
-                    assert contrast_len == self._groups.B, \
-                        f"Contrast Vector length={contrast_len} does not match Secondary factor levels={self._groups.B}"
                     print("Contrast Vector applied to Secondary Factor")
                     self._groups.contrast_factor = 2
 
@@ -1265,7 +1319,7 @@ class functionalANOVA():
                         f"Primary={self._groups.A} or Secondary={self._groups.B} Factors."
                     )
         elif self._groups.contrast is not None:
-            print("Warning: Ignoring Contrast Vector. Contrast Vector only used when Hypothesis='CUSTOM'.")
+            warnings.warn("Ignoring Contrast Vector. Contrast Vector only used when Hypothesis='CUSTOM'.")
 
     def _setup_twoway_labels_and_tables(self, C: np.ndarray, n_tests: int, scedasticity: str):
         """
