@@ -447,15 +447,16 @@ def plot_covariances(self, plot_type):
     fig_label = 'Group'
     temp_label = ''
 
-    if self._groups.subgroup_indicator is None:
-        assert plot_type == 'DEFAULT', 'TwoWay plotting options require a subgroup_indicator argument'
+    if self._groups.subgroup_indicator is None:  # OneWay
+        assert plot_type == 'FAMILY', 'TwoWay plotting options require a subgroup_indicator argument'
 
+        plot_type = 'DEFAULT'
         if self._labels.generic_group:
             display_label = [f"Group {i+1}" for i in range(self._groups.k)]
         else:
             display_label = self._labels.group
     else:
-        if plot_type in ['DEFAULT', 'PRIMARY']:
+        if plot_type == 'PRIMARY':
             plot_type = 'PRIMARY'
             fig_label = 'Primary Factor'
             display_label = self._labels.primary
@@ -470,7 +471,8 @@ def plot_covariances(self, plot_type):
             if self._labels.generic_group:
                 display_label = [f"Group {label}" for label in display_label]
 
-        elif plot_type == 'INTERACTION':
+        elif plot_type in ['INTERACTION', "FAMILY"]:
+            plot_type = 'INTERACTION'
             fig_label = 'Primary & Secondary Factors'
             combinations = utils.generate_two_way_comb(self)
             display_label = combinations
@@ -487,7 +489,7 @@ def plot_covariances(self, plot_type):
     else:
         color_bar_label = rf'$({self._units.response})^{{2}}$'
 
-    if plot_type in ['DEFAULT', 'PRIMARY']:
+    if plot_type in  ['DEFAULT', 'PRIMARY']:
         gamma_hat_i, pooled_covar, n_ii = _make_covariances(self.data, self._groups.k, self.n_domain_points)
         K = self._groups.k
 

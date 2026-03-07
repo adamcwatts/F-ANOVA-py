@@ -4,9 +4,7 @@ import os
 from functionalANOVA.fanova import functionalANOVA
 
 # Import Data
-script_dir = os.path.dirname(__file__)  # folder containing the script
-df = pd.read_csv(os.path.join(script_dir,'Data' ,"gait_data.csv"))  # replace with your actual file path
-
+df = pd.read_csv("Data/gait_data.csv")
 # Extract all group columns based on column name patterns
 group1_cols = [col for col in df.columns if col.startswith("group1")]
 group2_cols = [col for col in df.columns if col.startswith("group2")]
@@ -25,11 +23,12 @@ time = df["t"].to_numpy()
 
 # Bounds on time
 bounds = (-np.inf, np.inf)
-
+n_boot = 1000 # Default it 10,000 (small for tutorial examples)
 myANOVA = functionalANOVA(data_list=group_arrays, d_grid=time, grid_bounds=bounds,
                           group_labels=['Group A', 'Group B', 'Group C'],
                           domain_label='Time', domain_units='Seconds',
-                          response_label='Temperature', response_units='Celcius')
+                          response_label='Temperature', response_units='Celcius',
+                          n_boot=n_boot)
 
 myANOVA.oneway(hypothesis='family')
 myANOVA.oneway(hypothesis='pairwise')

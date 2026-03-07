@@ -187,7 +187,7 @@ class functionalANOVA():
 
 
     def plot_means(self,
-                   plot_type: str = 'default',
+                   plot_type: str = 'FAMILY',
                    subgroup_indicator: Optional[Union[np.ndarray, List[np.ndarray]]] = None,
                    group_labels: Optional[List[str]] = None,
                    primary_labels: Optional[List[str]] = None,
@@ -242,22 +242,29 @@ class functionalANOVA():
         # Update only changed values
         self.plottingOptions.update_from_dict(updates)
 
+        # Normalize plot_type once
+        plot_type = plot_type.upper()
+
         if self._groups.subgroup_indicator is None:
-            assert plot_type.upper() == 'DEFAULT', (
-                f"Invalid plot_type '{plot_type}'. "
-                "The plot types ['PRIMARY', 'SECONDARY', 'INTERACTION'] are only valid for two-way analyses, "
-                "which require providing a subgroup_indicator. "
-                "Use plot_type='DEFAULT' for one-way analyses.")
+            # One-way analysis
+            if plot_type != 'FAMILY':
+                raise ValueError(
+                    f"Invalid plot_type '{plot_type}'. "
+                    "For one-way analyses, only plot_type='FAMILY' is allowed."
+                )
         else:
-            assert plot_type.upper() in ['PRIMARY', 'SECONDARY', 'INTERACTION', 'DEFAULT'], (f"Invalid plot_type '{plot_type}'. "
-                "The plot types ['PRIMARY', 'SECONDARY', 'INTERACTION', 'DEFAULT'] are only valid for two-way analyses")
-            if  plot_type.upper() == 'DEFAULT':
-                plot_type = 'INTERACTION'
+            # Two-way analysis
+            valid_plot_types = ['PRIMARY', 'SECONDARY', 'INTERACTION', 'FAMILY']
+            if plot_type not in valid_plot_types:
+                raise ValueError(
+                    f"Invalid plot_type '{plot_type}'. "
+                    f"Valid options for two-way analyses are {valid_plot_types}."
+                )
 
         return plotting.plot_means(self, plot_type)
 
     def plot_covariances(self,
-                        plot_type:str='DEFAULT',
+                        plot_type:str='FAMILY',
                         subgroup_indicator: Optional[Union[np.ndarray, List[np.ndarray]]] = None,
                         group_labels: Optional[List[str]] = None,
                         primary_labels: Optional[List[str]] = None,

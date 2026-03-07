@@ -7,8 +7,7 @@ from functionalANOVA.fanova import functionalANOVA
 # Import statistically significant Data (Family or Secondary Factor Only)
 
 # Import Data
-script_dir = os.path.dirname(__file__)  # folder containing the script
-matlab_data = loadmat(os.path.join(script_dir,'Data', "example_data.mat"))
+matlab_data = loadmat("Data/example_data.mat")
 
 # Get data out of .mat file
 groups = [matlab_data['TwoWayData'][0, 0], matlab_data['TwoWayData'][0, 1]]
@@ -17,15 +16,17 @@ indicator_list = [matlab_data['IndicatorCell'][0,0], matlab_data['IndicatorCell'
 
 # # Bounds on time
 bounds = (-np.inf, np.inf)
-
-myANOVA = functionalANOVA(data_list=groups, d_grid=time, grid_bounds=bounds, subgroup_indicator=indicator_list)
+n_boot = 1000 # Default it 10,000 (small for tutorial examples)
+myANOVA = functionalANOVA(data_list=groups, d_grid=time, grid_bounds=bounds, subgroup_indicator=indicator_list, n_boot=n_boot)
 
 ## TwoWay Homoscedastic
-myANOVA.twoway(n_boot=1000)
-myANOVA.twoway(n_boot=1000, hypothesis="PRIMARY")
-myANOVA.twoway(n_boot=1000, hypothesis="SECONDARY")
-myANOVA.twoway(n_boot=1000, hypothesis="INTERACTION")
-myANOVA.twoway(n_boot=1000, hypothesis="PAIRWISE")
+myANOVA.twoway()
+myANOVA.plot_means()
+
+myANOVA.twoway( hypothesis="PRIMARY")
+myANOVA.twoway( hypothesis="SECONDARY")
+myANOVA.twoway( hypothesis="INTERACTION")
+myANOVA.twoway( hypothesis="PAIRWISE")
 
 myANOVA.plot_means(plot_type='PRIMARY')
 myANOVA.plot_means(plot_type='Secondary')
@@ -33,11 +34,11 @@ myANOVA.plot_means(plot_type='INTERACTION')
 
 
 # ## TwoWay Heteroscedastic
-myANOVA.twoway_bf(n_boot=1000)
-myANOVA.twoway_bf(n_boot=1000, hypothesis="PRIMARY")
-myANOVA.twoway_bf(n_boot=1000, hypothesis="SECONDARY")
-myANOVA.twoway_bf(n_boot=1000, hypothesis="INTERACTION")
-myANOVA.twoway_bf(n_boot=1000, hypothesis="PAIRWISE")
+myANOVA.twoway_bf()
+myANOVA.twoway_bf(hypothesis="PRIMARY")
+myANOVA.twoway_bf(hypothesis="SECONDARY")
+myANOVA.twoway_bf(hypothesis="INTERACTION")
+myANOVA.twoway_bf(hypothesis="PAIRWISE")
 
 
 # myANOVA.plot_covariances()
@@ -53,10 +54,10 @@ myANOVA.plot_means()
 ################################################
 # Import non-statistically significant Data
 
-Datamatlab_data = loadmat(os.path.join(script_dir,'Data', "example_data_2.mat"))
+Datamatlab_data = loadmat("Data/example_data_2.mat")
 groups = [Datamatlab_data['TwoWayData'][0, 0], Datamatlab_data['TwoWayData'][0, 1]]
 time = Datamatlab_data['timeData']
 indicator_array = Datamatlab_data['Master_Indicator']
-myANOVA = functionalANOVA(data_list=groups, d_grid=time, grid_bounds=bounds, subgroup_indicator=indicator_array)
-myANOVA.twoway(n_boot=1000)
-myANOVA.plot_means()
+myANOVA_2 = functionalANOVA(data_list=groups, d_grid=time, grid_bounds=bounds, subgroup_indicator=indicator_array)
+myANOVA_2.twoway(n_boot=1000)
+myANOVA_2.plot_means()
