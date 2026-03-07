@@ -752,6 +752,7 @@ class functionalANOVA():
         n_groups = len(self.n_i)
 
         Mystring = f"\nOne-Way {ANOVA_TYPE} F-ANOVA Data Summary:\n\n"
+        Mystring += f"Hypothesis Type = {self.hypothesis.upper()}\n"
         Mystring += f"Confidence Level = {(1 - self.alpha) * 100:.3f} %\n"
         Mystring += f"Number of Observations Total = {self.N}\n"
         Mystring += f"Number of Points in Domain = {self.n_domain_points}\n"
@@ -779,6 +780,7 @@ class functionalANOVA():
 
         # Start building the summary string
         Mystring = f"\nTwo-Way {ANOVA_TYPE} F-ANOVA Data Summary:\n\n"
+        Mystring += f"Hypothesis Type = {self.hypothesis.upper()}\n"
         Mystring += f"Confidence Level = {(1 - self.alpha) * 100:.3f} %\n"
         Mystring += f"Number of Observations Total = {self.N}\n"
         Mystring += f"Number of Points in Domain = {self.n_domain_points}\n"
