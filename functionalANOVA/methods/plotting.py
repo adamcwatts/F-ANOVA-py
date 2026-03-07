@@ -120,11 +120,14 @@ def plot_means(self, plot_type):
     the_labels  = []
     fig_label = 'Group'
 
-    if self._groups.subgroup_indicator is None:
+    if self._groups.subgroup_indicator is None:  # One Way Analysis
         the_labels = self._labels.group
         n_labels = self.n_i
-    else:
-        if plot_type in ['DEFAULT', 'PRIMARY']:
+        plot_type = 'DEFAULT'
+        fig_label = 'Primary Factor'
+        
+    else: # Two Way Analysis
+        if plot_type == ['PRIMARY']:
             plot_type = 'PRIMARY'
             the_labels = self._labels.primary
             n_labels = self.n_i
@@ -137,11 +140,13 @@ def plot_means(self, plot_type):
             for k in range(self._groups.A):
                 for kk in range(self._groups.B):
                     n_labels[kk] += self.n_ii[k][kk]
-
-        elif plot_type == "INTERACTION":
+                    
+        elif plot_type in ["INTERACTION", "FAMILY"]:
+            plot_type = "INTERACTION"
             the_labels = utils.generate_two_way_comb(self)
             n_labels = np.concatenate([item for item in self.n_ii])
             fig_label = 'Primary & Secondary Factors'
+
 
     if self.plottingOptions.observation_size_label:
         if self._labels.generic_group:
