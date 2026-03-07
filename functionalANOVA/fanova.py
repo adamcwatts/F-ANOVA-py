@@ -314,16 +314,16 @@ class functionalANOVA():
         return twoway.run_twowayBF(self, *args, **kwargs)
 
     def oneway(self,
-                  n_boot: int = 10_000,
-                  n_simul: int = 10_000,
-                  alpha: float = 0.05,
-                  seed: Optional[Union[int, np.random.Generator]] = None,
-                  methods: Optional[Sequence[str]] = None,
-                  hypothesis: Optional[Sequence[str]] = None,
-                  show_simul_plots: Optional[bool] = None,
-                  group_labels: Optional[Union[List[str], Tuple[str, ...]]] = None):
-
-        self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
+               n_boot: Optional[int] = None,
+               n_simul: Optional[int] = None,
+               alpha: Optional[float] = None,
+               seed: Optional[Union[int, np.random.Generator]] = None,
+               methods: Optional[Sequence[str]] = None,
+               hypothesis: Optional[Sequence[str]] = None,
+               show_simul_plots: Optional[bool] = None,
+               group_labels: Optional[Union[List[str], Tuple[str, ...]]] = None):
+        
+        self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis, design='oneway')
         self._validate_plotting_inputs(show_simul_plots, group_labels)
 
         n_methods = len(self._methods.anova_methods_used)
@@ -375,16 +375,26 @@ class functionalANOVA():
             self._show_table(self._tables.oneway)
 
     def oneway_bf(self,
-                  n_boot: int = 10_000,
-                  n_simul: int = 10_000,
-                  alpha: float = 0.05,
-                  seed: Optional[Union[int, np.random.Generator]] = None,
-                  methods: Optional[Sequence[str]] = None,
-                  hypothesis: Optional[Sequence[str]] = None,
-                  show_simul_plots: Optional[bool] = None,
-                  group_labels: Optional[Union[List[str], Tuple[str, ...]]] = None):
+               n_boot: Optional[int] = None,
+               n_simul: Optional[int] = None,
+               alpha: Optional[float] = None,
+               seed: Optional[Union[int, np.random.Generator]] = None,
+               methods: Optional[Sequence[str]] = None,
+               hypothesis: Optional[Sequence[str]] = None,
+               show_simul_plots: Optional[bool] = None,
+               group_labels: Optional[Union[List[str], Tuple[str, ...]]] = None):
+        
+        # Use instance defaults unless overridden
+        if n_boot is not None:
+            self.n_boot = int(n_boot)
 
-        self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
+        if n_simul is not None:
+            self.n_simul = int(n_simul)
+
+        if alpha is not None:
+            self.alpha = alpha
+            
+        self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis, design='oneway')
         self._validate_plotting_inputs(show_simul_plots, group_labels)
 
         n_methods = len(self._methods.anova_methods_used)
@@ -465,9 +475,9 @@ class functionalANOVA():
 
     def twoway(
         self,
-        n_boot: int = 10_000,
-        n_simul: int = 10_000,
-        alpha: float = 0.05,
+        n_boot: Optional[int] = None,
+        n_simul: Optional[int] = None,
+        alpha: Optional[float] = None,
         seed: Optional[Union[int, np.random.Generator]] = None,
         methods: Optional[Sequence[str]] = None,
         hypothesis: Optional[Sequence[str]] = None,
@@ -477,7 +487,7 @@ class functionalANOVA():
         secondary_labels: Optional[Sequence[str]] = None,
         weights: Optional[Literal["proportional", "uniform"]] = None
     ):
-        self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
+        self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis,  design='twoway')
         self._validate_twoway_inputs(contrast, weights)
         self._validate_plotting_inputs(primary_labels, secondary_labels)
 
@@ -532,9 +542,9 @@ class functionalANOVA():
 
     def twoway_bf(
         self,
-        n_boot: int = 10_000,
-        n_simul: int = 10_000,
-        alpha: float = 0.05,
+        n_boot: Optional[int] = None,
+        n_simul: Optional[int] = None,
+        alpha: Optional[float] = None,
         seed: Optional[Union[int, np.random.Generator]] = None,
         methods: Optional[Sequence[str]] = None,
         hypothesis: Optional[Sequence[str]] = None,
@@ -544,7 +554,7 @@ class functionalANOVA():
         secondary_labels: Optional[Sequence[str]] = None,
         weights: Optional[Literal["proportional", "uniform"]] = None
     ):
-        self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis)
+        self._validate_stat_inputs(alpha, n_boot, n_simul, seed, methods, hypothesis, design='oneway')
         self._validate_twoway_inputs(contrast, weights)
         self._validate_plotting_inputs(primary_labels, secondary_labels)
 
@@ -823,59 +833,73 @@ class functionalANOVA():
         self.d_grid = self._cast_to_1D(self.d_grid)
         #TODO need to validate more inputs
 
-    def _validate_stat_inputs(self, alpha, n_boot, n_simul, seed, methods, hypothesis):
-        # Validate alpha
-        if not (0 < alpha < 1):
-            raise ValueError(f"alpha must be between 0 and 1, got {alpha}")
+    def _validate_stat_inputs(
+        self,
+        alpha,
+        n_boot,
+        n_simul,
+        seed,
+        methods,
+        hypothesis,
+        design: str,   # <-- explicit
+    ):
+        # Resolve effective values (do NOT mutate yet)
+        alpha_eff = self.alpha if alpha is None else alpha
+        n_boot_eff = self.n_boot if n_boot is None else int(n_boot)
+        n_simul_eff = self.n_simul if n_simul is None else int(n_simul)
 
-        self.alpha = alpha
+        # ---- Validate alpha ----
+        if not (0 < alpha_eff < 1):
+            raise ValueError(f"alpha must be between 0 and 1, got {alpha_eff}")
 
-        # Validate n_boot and n_simul
-        if not isinstance(n_boot, int) or n_boot <= 0:
-            raise ValueError(f"n_boot must be a positive integer, got {n_boot}")
-        if not isinstance(n_simul, int) or n_simul <= 0:
-            raise ValueError(f"n_simul must be a positive integer, got {n_simul}")
+        # ---- Validate boot/simul ----
+        if not isinstance(n_boot_eff, int) or n_boot_eff <= 0:
+            raise ValueError(f"n_boot must be a positive integer, got {n_boot_eff}")
 
-        self.n_boot = n_boot
-        self.n_simul = n_simul
+        if not isinstance(n_simul_eff, int) or n_simul_eff <= 0:
+            raise ValueError(f"n_simul must be a positive integer, got {n_simul_eff}")
 
-        # Validate ANOVA methods
-        if methods is not None:
-            upper_cased_methods = tuple(s.upper() for s in self._methods.anova_methods)
-            for m in methods:
-                if m.upper() not in upper_cased_methods:
-                    raise ValueError(f"Invalid method: {m}. Must be one of {self._methods.anova_methods}")
-
-            self._cast_anova_methods(methods)
-        else:
-            self._methods.anova_methods_used = self._methods.anova_methods
-
-        # Validate seed or RNG (best practice)
-        if seed is not None:
-            if not isinstance(seed, (int, np.random.Generator)):
-                raise TypeError(f"'seed' must be an integer or a RNG, got {type(seed).__name__}")
-        self.rng = self._get_rng(seed)
-
-        # Validate hypothesis: Family or Pairwise
+        # ---- Validate hypothesis ----
         if hypothesis is not None:
             if not isinstance(hypothesis, str):
                 raise TypeError(f"'hypothesis' must be a string, got {type(hypothesis).__name__}")
 
-            if not hypothesis.strip():
-                raise ValueError("hypothesis string must not be empty or whitespace only")
+            hypothesis = hypothesis.upper().strip()
 
-            f = sys._getframe(1)  # 0=this function, 1=its caller
-
-            if 'oneway' in f.f_code.co_name:
-                if hypothesis.upper() not in self._labels.H0_OneWay:
-                    raise ValueError(f"Invalid hypothesis: {hypothesis}. Must be one of {self._labels.H0_OneWay}")
-            elif 'twoway' in f.f_code.co_name:
-                if hypothesis.upper() not in self._labels.H0_TwoWay:
-                    raise ValueError(f"Invalid hypothesis: {hypothesis}. Must be one of {self._labels.H0_TwoWay}")
+            if design == "oneway":
+                valid = self._labels.H0_OneWay
+            elif design == "twoway":
+                valid = self._labels.H0_TwoWay
             else:
-                raise ValueError(f"Unknown Method. Call stack above was: {f.f_code.co_name}")
+                raise ValueError(f"Unknown design type: {design}")
 
-            self.hypothesis = hypothesis.upper()
+            if hypothesis not in valid:
+                raise ValueError(f"Invalid hypothesis: {hypothesis}. Must be one of {valid}")
+
+            self.hypothesis = hypothesis
+
+        # ---- Validate methods ----
+        if methods is not None:
+            upper_cased_methods = tuple(s.upper() for s in self._methods.anova_methods)
+            for m in methods:
+                if m.upper() not in upper_cased_methods:
+                    raise ValueError(
+                        f"Invalid method: {m}. Must be one of {self._methods.anova_methods}"
+                    )
+            self._cast_anova_methods(methods)
+        else:
+            self._methods.anova_methods_used = self._methods.anova_methods
+
+        # ---- RNG ----
+        if seed is not None and not isinstance(seed, (int, np.random.Generator)):
+            raise TypeError(f"'seed' must be an integer or a RNG, got {type(seed).__name__}")
+
+        self.rng = self._get_rng(seed)
+
+        # ---- Commit validated values ----
+        self.alpha = alpha_eff
+        self.n_boot = n_boot_eff
+        self.n_simul = n_simul_eff
 
     def _validate_subgroup_indicator(
         self,
