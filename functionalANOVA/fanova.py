@@ -251,6 +251,8 @@ class functionalANOVA():
         else:
             assert plot_type.upper() in ['PRIMARY', 'SECONDARY', 'INTERACTION', 'DEFAULT'], (f"Invalid plot_type '{plot_type}'. "
                 "The plot types ['PRIMARY', 'SECONDARY', 'INTERACTION', 'DEFAULT'] are only valid for two-way analyses")
+            if  plot_type.upper() == 'DEFAULT':
+                plot_type = 'INTERACTION'
 
         return plotting.plot_means(self, plot_type)
 
