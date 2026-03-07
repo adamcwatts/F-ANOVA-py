@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.stats import chi2, gaussian_kde
-from functionalANOVA.core import utils
+from functionalANOVA import utils
 
 # TODO: Needs work
 def k_group_cov_pairwise(self, method, y1, y2, seed=None):

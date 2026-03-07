@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
-from functionalANOVA.core.fanova import functionalANOVA
+from functionalANOVA.fanova import functionalANOVA
 
 # Import Data
 script_dir = os.path.dirname(__file__)  # folder containing the script

@@ -1,7 +1,7 @@
 from scipy.io import loadmat
 import os
 import numpy as np
-from functionalANOVA.core.fanova import functionalANOVA
+from functionalANOVA.fanova import functionalANOVA
 
 ################################################
 # Import statistically significant Data (Family or Secondary Factor Only)

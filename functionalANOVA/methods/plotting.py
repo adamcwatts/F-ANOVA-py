@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import os
 import math
-from functionalANOVA.core import utils
+from functionalANOVA import utils
 from typing import Union, Optional, Any, Tuple
 
 

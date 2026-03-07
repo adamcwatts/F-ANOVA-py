@@ -6,7 +6,7 @@ except PackageNotFoundError:
     pass
 
 
-from functionalANOVA.core.fanova import (
+from functionalANOVA.fanova import (
     functionalANOVA,
     ANOVALabels,
     ANOVAUnits,

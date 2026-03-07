@@ -1,10 +1,10 @@
-from functionalANOVA.core import utils
+from functionalANOVA import utils
 import numpy as np
 from scipy import stats
 from scipy.stats import chi2, f, ncx2
 from scipy.linalg import inv, sqrtm
 from tqdm import tqdm
-from functionalANOVA.core.methods import plotting
+from functionalANOVA.methods import plotting
 
 
 # TODO: Needs work

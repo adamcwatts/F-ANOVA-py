@@ -3,8 +3,8 @@ import pandas as pd
 from typing import Tuple, Optional, List, Union, Any, ClassVar, cast, Sequence, Literal
 from dataclasses import dataclass, field
 import warnings
-from functionalANOVA.core import utils
-from functionalANOVA.core.methods import oneway, twoway, plotting
+from functionalANOVA import utils
+from functionalANOVA.methods import oneway, twoway, plotting
 import sys
 
 @dataclass  # class to store these labels
@@ -255,7 +255,7 @@ class functionalANOVA():
         return plotting.plot_means(self, plot_type)
 
     def plot_covariances(self,
-                        plot_type: str,
+                        plot_type:str='DEFAULT',
                         subgroup_indicator: Optional[Union[np.ndarray, List[np.ndarray]]] = None,
                         group_labels: Optional[List[str]] = None,
                         primary_labels: Optional[List[str]] = None,
