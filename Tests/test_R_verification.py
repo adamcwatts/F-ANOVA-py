@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import pytest
 from importlib import resources
-
 from fanova import functionalANOVA
 
 
@@ -58,6 +57,8 @@ class TestRVerification:
 
     def test_l2_stat(self, r_verif: dict[str, float]) -> None:
         table = self.fanova.tables.oneway
+        assert table is not None
+        
         l2_stat = table.loc[
             table["Family-Wise Method"] == "L2-Naive",
             "Test-Statistic",
@@ -67,6 +68,7 @@ class TestRVerification:
 
     def test_f_stat(self, r_verif: dict[str, float]) -> None:
         table = self.fanova.tables.oneway
+        assert table is not None
         f_stat = table.loc[
             table["Family-Wise Method"] == "F-Naive",
             "Test-Statistic",
@@ -76,7 +78,7 @@ class TestRVerification:
 
     def test_l2_pvals(self, r_verif: dict[str, float]) -> None:
         table = self.fanova.tables.oneway
-
+        assert table is not None
         for method, key in [
             ("L2-Naive", "L2_Naive_pval"),
             ("L2-BiasReduced", "L2_BiasReduced_pval"),
@@ -90,7 +92,8 @@ class TestRVerification:
 
     def test_f_pvals(self, r_verif: dict[str, float]) -> None:
         table = self.fanova.tables.oneway
-
+        assert table is not None
+        
         for method, key in [
             ("F-Naive", "F_Naive_pval"),
             ("F-BiasReduced", "F_BiasReduced_pval"),
