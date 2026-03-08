@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
-import os
-from functionalANOVA.fanova import functionalANOVA
+from fanova import functionalANOVA
+from fanova.datasets import load_example_csv
 
 # Import Data
-df = pd.read_csv("Data/gait_data.csv")
+df = load_example_csv()
 # Extract all group columns based on column name patterns
 group1_cols = [col for col in df.columns if col.startswith("group1")]
 group2_cols = [col for col in df.columns if col.startswith("group2")]

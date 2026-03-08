@@ -1,13 +1,14 @@
 from scipy.io import loadmat
 import os
 import numpy as np
-from functionalANOVA.fanova import functionalANOVA
+from fanova import functionalANOVA
+from fanova.datasets import load_example_mat, load_example_mat2
 
 ################################################
 # Import statistically significant Data (Family or Secondary Factor Only)
 
 # Import Data
-matlab_data = loadmat("Data/example_data.mat")
+matlab_data = load_example_mat()
 
 # Get data out of .mat file
 groups = [matlab_data['TwoWayData'][0, 0], matlab_data['TwoWayData'][0, 1]]
@@ -54,10 +55,10 @@ myANOVA.plot_means()
 ################################################
 # Import non-statistically significant Data
 
-Datamatlab_data = loadmat("Data/example_data_2.mat")
-groups = [Datamatlab_data['TwoWayData'][0, 0], Datamatlab_data['TwoWayData'][0, 1]]
-time = Datamatlab_data['timeData']
-indicator_array = Datamatlab_data['Master_Indicator']
+Dmatlab_data_2 = load_example_mat2()
+groups = [Dmatlab_data_2['TwoWayData'][0, 0], Dmatlab_data_2['TwoWayData'][0, 1]]
+time = Dmatlab_data_2['timeData']
+indicator_array = Dmatlab_data_2['Master_Indicator']
 myANOVA_2 = functionalANOVA(data_list=groups, d_grid=time, grid_bounds=bounds, subgroup_indicator=indicator_array)
 myANOVA_2.twoway(n_boot=1000)
 myANOVA_2.plot_means()

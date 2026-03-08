@@ -1,14 +1,11 @@
-from scipy.io import loadmat
-import os
 import numpy as np
-from functionalANOVA.fanova import functionalANOVA
-
+from fanova import functionalANOVA
+from fanova.datasets import load_example_mat
 ################################################
 # Import statistically significant Data (Family or Secondary Factor Only)
 
-# Import Data
-script_dir = os.path.dirname(__file__)  # folder containing the script
-matlab_data = loadmat(os.path.join(script_dir,'Data', "example_data.mat"))
+# Load packaged .mat dataset
+matlab_data = load_example_mat()
 
 # Get data out of .mat file
 groups = [matlab_data['TwoWayData'][0, 0], matlab_data['TwoWayData'][0, 1]]
