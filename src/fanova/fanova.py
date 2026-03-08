@@ -3,8 +3,8 @@ import pandas as pd
 from typing import Tuple, Optional, List, Union, Any, ClassVar, cast, Sequence, Literal
 from dataclasses import dataclass, field
 import warnings
-from functionalANOVA import utils
-from functionalANOVA.methods import oneway, twoway, plotting
+from fanova import utils
+from fanova.methods import oneway, twoway, plotting
 import sys
 
 @dataclass  # class to store these labels

@@ -4,8 +4,8 @@ from scipy.stats import chi2, f
 from scipy.linalg import inv
 import pandas as pd
 from tqdm import tqdm
-from functionalANOVA import utils
-from functionalANOVA.methods.oneway import run_onewayBF
+from fanova import utils
+from fanova.methods.oneway import run_onewayBF
 
 # TODO: Check Pairwise hypothesis
 def run_twoway(self, method, data, contrast, rng):

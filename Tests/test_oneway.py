@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from typing import Callable
 from dataclasses import dataclass, asdict
-from functionalANOVA import functionalANOVA
+from fanova import fanova
 from utils import *
 
 @dataclass
