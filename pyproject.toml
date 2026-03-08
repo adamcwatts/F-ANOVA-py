@@ -7,13 +7,13 @@ name = "f-anova-py"
 version = "0.1.0"
 description = "A Python adaptation of LANL's F-ANOVA project"
 authors = [
-    { name="Adam C. Watts" },
-    { name="Shankar Chawla" }
+    { name = "Adam C. Watts" },
+    { name = "Shankar Chawla" }
 ]
-
-license = "BSD-3-Clause"
+license = { text = "BSD-3-Clause" }
 readme = "README.md"
 requires-python = ">=3.10"
+
 dependencies = [
     "matplotlib>=3.10.3",
     "numpy>=2.2.5",
@@ -23,15 +23,19 @@ dependencies = [
 ]
 
 classifiers = [
-    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD License",
     "Topic :: Scientific/Engineering",
     "Intended Audience :: Science/Research"
 ]
 
 [tool.setuptools.packages.find]
-include = ["functionalANOVA*"]
+where = ["src"]
 
-[dependency-groups]
+[tool.setuptools.package-data]
+fanova = ["datasets/*.csv", "datasets/*.mat"]
+
+[project.optional-dependencies]
 dev = [
     "pytest>=8.3.5",
 ]

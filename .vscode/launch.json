@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Two-Way Example",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "functionalANOVA.twoway_example",
+      "justMyCode": false,
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"  // ✅ This ensures Python starts in the project root
+    },
+    {
+      "name": "Debug One-Way Example",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "functionalANOVA.oneway_example",
+      "justMyCode": false,
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"  // ✅ Add this here too
+    },
+    {
+      "name": "Python: Current File (project cwd)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      }
+    }
+  ]
+}
