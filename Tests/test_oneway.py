@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from typing import Callable
 from dataclasses import dataclass, asdict
-from fanova import fanova
+from fanova import functionalANOVA
 from utils import *
 
 @dataclass
@@ -73,9 +73,9 @@ class TestOneway:
             hypothesis="FAMILY",
             seed=9000
         )
-
-        p_vals = fanova.tables.oneway["P-Value"].values
-        assert np.all(p_vals > 0.05)
+        df = fanova.tables.oneway
+        assert df is not None
+        assert (df["P-Value"] > 0.05).all()
 
     @pytest.mark.parametrize("hypothesis_type", [
         "FAMILY",
@@ -107,9 +107,11 @@ class TestOneway:
             seed=9001
         )
 
+        assert fanova.tables.oneway is not None
         if hypothesis_type == "FAMILY":
-            p_vals = fanova.tables.oneway["P-Value"].values
-            assert np.all(p_vals < 0.05)
+            df = fanova.tables.oneway
+            assert df is not None
+            assert np.all(df["P-Value"] < 0.05)
         else: # pairwise
             assert np.all(fanova.tables.oneway.iloc[0,1:] < 0.05)  # 0 & 1
             assert np.all(fanova.tables.oneway.iloc[1,1:] < 0.05)  # 0 & 2
@@ -136,9 +138,11 @@ class TestOnewayBF:
             hypothesis="FAMILY",
             seed=9001
         )
+        
 
-        p_vals = fanova.tables.oneway_bf["P-Value"].values
-        assert np.all(p_vals > 0.05)
+        df = fanova.tables.oneway_bf
+        assert df is not None
+        assert np.all(df["P-Value"] > 0.05)
 
     @pytest.mark.parametrize("hypothesis_type", [
         "FAMILY",
@@ -168,10 +172,12 @@ class TestOnewayBF:
         )
 
         if hypothesis_type == "FAMILY":
-            p_vals = fanova.tables.oneway_bf["P-Value"].values
-            assert np.all(p_vals < 0.05)
+            df = fanova.tables.oneway_bf
+            assert df is not None
+            assert np.all(df["P-Value"] < 0.05)
         else: # pairwise
             table = fanova.tables.oneway_bf
+            assert table is not None
             assert np.all(table.iloc[0,1:] > 0.05)  # 0 & 1
             assert np.all(table.iloc[1,1:] < 0.05)  # 0 & 2
             assert np.all(table.iloc[2,1:] < 0.05)  # 1 & 2
