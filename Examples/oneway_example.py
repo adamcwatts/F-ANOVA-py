@@ -37,4 +37,5 @@ myANOVA.oneway_bf(hypothesis='family')
 myANOVA.oneway_bf(hypothesis='pairwise')
 
 myANOVA.plot_means()
-myANOVA.plot_covariances('default')
+myANOVA.plot_covariances()
+
